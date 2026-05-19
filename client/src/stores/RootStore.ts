@@ -8,8 +8,8 @@ import * as Api from "../api/users";
 import ToastContainer from "../utils/toastContainer";
 import { getErrorMessage } from "@/utils/helpers";
 import type { VolumeRenderer } from "@/renderer/renderer";
-import type { OrbitCameraController } from "@/utils/orbitCameraController";
 import { removeUserCookie, setUserCookie } from "@/utils/cookie";
+import type { CameraController } from "@/renderer/cameraControllers/cameraController";
 
 export const RootStore = types
   .model({
@@ -22,7 +22,7 @@ export const RootStore = types
     triedReloadingSession: false,
     setingUpUser: false,
     renderer: null as VolumeRenderer | null,
-    orbitCameraController: null as OrbitCameraController | null,
+    orbitCameraController: null as CameraController | null,
   }))
 
   .views((self) => ({
@@ -44,9 +44,7 @@ export const RootStore = types
       }
       self.renderer = renderer;
     },
-    setOrbitCameraController(
-      orbitCameraController: OrbitCameraController | null
-    ) {
+    setOrbitCameraController(orbitCameraController: CameraController | null) {
       self.orbitCameraController = orbitCameraController;
     },
     setReloadingSession(loading: boolean) {

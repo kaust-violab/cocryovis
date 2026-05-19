@@ -1,7 +1,8 @@
 import type { Camera } from "@/renderer/core/camera";
-import { clamp } from "./helpers";
+import { clamp } from "../utilities/math";
+import { CameraController } from "./cameraController";
 
-export class OrbitCameraController {
+export class OrbitCameraController extends CameraController {
   private static readonly MOUSE_BUTTON = 2;
 
   minDistance = 1;
@@ -24,6 +25,7 @@ export class OrbitCameraController {
     private domElement: HTMLElement,
     private radius: number
   ) {
+    super();
     this.addEventListeners();
     this.updateCamera();
   }

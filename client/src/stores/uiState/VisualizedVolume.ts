@@ -26,9 +26,9 @@ import type { VolumeRenderer } from "@/renderer/renderer";
 import { RootStore } from "../RootStore";
 import { clamp } from "@/utils/helpers";
 import type { ClippingPlaneType } from "@/renderer/volume/clippingPlaneManager";
-import type { OrbitCameraController } from "@/utils/orbitCameraController";
 import type { VolumeDescriptor } from "@/utils/volumeDescriptor";
 import { fileMapToVisualizationConfig } from "@/utils/volumeVisualization";
+import type { CameraController } from "@/renderer/cameraControllers/cameraController";
 
 export type visualizedObjectInstances =
   | VolumeInstance
@@ -163,7 +163,7 @@ export const VisualizedVolume = types
       const rootStore = getParentOfType(self, RootStore);
       return rootStore.renderer;
     },
-    get orbitCameraController(): OrbitCameraController | null {
+    get orbitCameraController(): CameraController | null {
       const rootStore = getParentOfType(self, RootStore);
       return rootStore.orbitCameraController;
     },

@@ -4,9 +4,9 @@ import { makeStyles, Spinner } from "@fluentui/react-components";
 import { observer } from "mobx-react-lite";
 import { useMst } from "@/stores/RootStore";
 import { CONFIG } from "@/constants";
-import { OrbitCameraController } from "@/utils/orbitCameraController";
 import { useCanvasControls } from "@/hooks/useCanvasControls";
 import Ruler from "./Ruler";
+import { FreeOrbitCameraController } from "@/renderer/cameraControllers/freeOrbitCameraController";
 
 const useStyles = makeStyles({
   canvasContainer: {
@@ -48,7 +48,7 @@ const RendererCanvas = observer(() => {
       }
       rootStore.setRenderer(renderer);
       rootStore.setOrbitCameraController(
-        new OrbitCameraController(renderer.camera, canvasRef.current, 3)
+        new FreeOrbitCameraController(renderer.camera, canvasRef.current, 3)
       );
     },
   });
