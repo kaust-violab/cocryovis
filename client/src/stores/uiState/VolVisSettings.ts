@@ -16,6 +16,7 @@ export const VolVisSettings = types
     name: types.string,
     transferFunction: TransferFunction,
     visible: types.optional(types.boolean, true),
+    clipVisible: types.optional(types.boolean, true),
     // clipping: types.optional(types.boolean, true),
     type: types.enumeration("VolumeType", ["volume", "raw"]),
   })
@@ -30,6 +31,12 @@ export const VolVisSettings = types
       self.visible = visible;
       self.renderer?.volumeManager.channelData.set(self.index, {
         visible: visible,
+      });
+    },
+    setClipVisibility(clipVisible: boolean) {
+      self.clipVisible = clipVisible;
+      self.renderer?.volumeManager.channelData.set(self.index, {
+        clipVisible: clipVisible,
       });
     },
     // setClipping(clipping: boolean) {

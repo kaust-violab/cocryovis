@@ -17,7 +17,8 @@ struct Ray {
 
 struct ChannelData {
 	visible: u32,
-	_padding: vec3<u32>,
+	clipVisible: u32,
+	_padding: vec2<u32>,
 }
 
 struct Param {

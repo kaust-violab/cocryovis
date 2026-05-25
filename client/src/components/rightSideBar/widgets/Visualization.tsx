@@ -83,7 +83,7 @@ const useStyles = makeStyles({
   volumes: {
     width: "100%",
     display: "grid",
-    gridTemplateColumns: "auto auto",
+    gridTemplateColumns: "auto auto auto",
     alignItems: "center",
   },
   volumesRow: {
@@ -509,7 +509,7 @@ const Visualization = observer(({ open, close }: Props) => {
               borderColor: tokens.colorNeutralBackground1Hover,
             }}
           />
-          <h3 style={{ fontWeight: "100", margin: 0 }}>Volume(s)</h3>
+          <h3 style={{ fontWeight: "100", margin: 0 }}>Visibility</h3>
           {uiState.visualizedVolume?.volVisSettings && (
             <>
               <div className={classes.volumes}>
@@ -517,7 +517,10 @@ const Visualization = observer(({ open, close }: Props) => {
                   Name
                 </Text>
                 <Text className={classes.volumesHeader} weight="semibold">
-                  Visible
+                  Volume
+                </Text>
+                <Text className={classes.volumesHeader} weight="semibold">
+                  Clipping Plane
                 </Text>
                 {uiState.visualizedVolume.volumeSettings.map(
                   (settingsInstance: VolVisSettingsInstance) => (
@@ -530,6 +533,12 @@ const Visualization = observer(({ open, close }: Props) => {
                         checked={settingsInstance.visible}
                         onChange={(_, data) => {
                           settingsInstance.setVisibility(data.checked);
+                        }}
+                      />
+                      <Switch
+                        checked={settingsInstance.clipVisible}
+                        onChange={(_, data) => {
+                          settingsInstance.setClipVisibility(data.checked);
                         }}
                       />
                     </div>

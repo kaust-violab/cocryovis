@@ -1,11 +1,9 @@
-import {
-  BoolUint32,
-  type DecodedBuffer,
-} from "buffer-backed-object";
+import { BoolUint32, type DecodedBuffer } from "buffer-backed-object";
 import { WebGpuBufferBBOArray } from "@/renderer/core/webGpuBufferBBO";
 
 const channelParametersDescriptor = {
   visible: BoolUint32(),
+  clipVisible: BoolUint32(),
 } as const;
 
 export type ChannelParameters = DecodedBuffer<

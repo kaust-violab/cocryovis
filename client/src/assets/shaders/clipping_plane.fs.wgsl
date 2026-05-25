@@ -12,7 +12,8 @@ struct Camera {
 
 struct ChannelData {
 	visible: u32,
-	_padding: vec3<u32>,
+	clipVisible: u32,
+	_padding: vec2<u32>,
 }
 
 struct AnnotationChannelData {
@@ -151,10 +152,10 @@ fn cube(eye: vec3<f32>, dir: vec3<f32>, size: vec3<f32>) -> CubeOutput {
 fn dataRead(pos: vec3<f32>) -> vec4<f32> {
 	var mapped: vec4<f32>;
 	let sample4 = textureSampleLevel(volume0, s, pos, 0.0);
-	mapped.x = sample4.x * f32(channelData[0].visible);
-	mapped.y = sample4.y * f32(channelData[1].visible);
-	mapped.z = sample4.z * f32(channelData[2].visible);
-	mapped.w = sample4.w * f32(channelData[3].visible);
+	mapped.x = sample4.x * f32(channelData[0].clipVisible);
+	mapped.y = sample4.y * f32(channelData[1].clipVisible);
+	mapped.z = sample4.z * f32(channelData[2].clipVisible);
+	mapped.w = sample4.w * f32(channelData[3].clipVisible);
 	return mapped;
 }
 
