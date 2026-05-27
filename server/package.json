@@ -67,6 +67,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@faker-js/faker": "^10.4.0",
     "@types/adm-zip": "^0.5.8",
     "@types/archiver": "^7.0.0",
     "@types/bcrypt": "^6.0.0",
