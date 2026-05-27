@@ -212,6 +212,7 @@ export class VolumeManager {
 
       this.channelData.set(tfIndex, {
         visible: true,
+        clipVisible: true,
       });
 
       this.transferFunctionLut.setBreakpoints(

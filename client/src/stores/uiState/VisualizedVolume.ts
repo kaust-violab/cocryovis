@@ -175,6 +175,9 @@ export const VisualizedVolume = types
       }
     },
     setVisualizedObject(visualizedObject: visualizedObjectInstances) {
+      if (visualizedObject === undefined) {
+        return;
+      }
       // This only exist since for whatever reason safeReference fails if object are passed on creation time, so we have to assign them later...
       if (Array.isArray(visualizedObject)) {
         if (visualizedObject.length > 0) {
