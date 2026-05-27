@@ -116,7 +116,7 @@ const SideControls = observer(() => {
             LabelIcon={DesktopTower24Regular}
             isOpen={uiState.openLeftWidget === (WidgetIndices.Local as number)}
             onClick={() => uiState.setOpenLeftWidget(WidgetIndices.Local)}
-            disabled={user.isGuest || pageDisabled}
+            disabled={pageDisabled}
           />
 
           <Divider />
