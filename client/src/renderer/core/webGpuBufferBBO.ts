@@ -62,8 +62,8 @@ export abstract class WebGpuBufferBBO<
 export abstract class WebGpuBufferBBOArray<
   T extends Descriptors,
 > extends WebGpuBuffer {
-  protected readonly arrayBuffer: ArrayBuffer;
-  protected readonly bufferObject: Array<DecodedBuffer<T>>;
+  protected arrayBuffer: ArrayBuffer;
+  protected bufferObject: Array<DecodedBuffer<T>>;
   protected readonly descriptor: T;
   protected dirty: boolean = true;
   protected arrayLength: number = 0;
@@ -119,22 +119,35 @@ export abstract class WebGpuBufferBBOArray<
   }
 
   setLength(length: number) {
-    this.arrayLength = length;
+    if (length === this.arrayLength) {
+      return;
+    }
     const size = descriptorToArrayBufferSize(
       this.descriptor,
       this.alignment,
       length
     );
     const newArrayBuffer = new ArrayBuffer(size);
-    const srcView = new Uint8Array(this.arrayBuffer);
-    const dstView = new Uint8Array(newArrayBuffer);
-    const len = Math.min(srcView.length, dstView.length);
-    dstView.set(srcView.subarray(0, len));
+    const src = new Uint8Array(this.arrayBuffer);
+    const dst = new Uint8Array(newArrayBuffer);
+    dst.set(src.subarray(0, Math.min(src.length, dst.length)));
+
+    this.arrayLength = length;
+    this.arrayBuffer = newArrayBuffer;
+    this.bufferObject = ArrayOfBufferBackedObjects(
+      this.arrayBuffer,
+      this.descriptor,
+      {
+        length,
+        align: this.alignment,
+      }
+    );
+    this.dirty = true;
   }
 
-  override updateBuffer() {
+  override updateBuffer(): boolean {
     if (!this.dirty || this.destroyed) {
-      return;
+      return false;
     }
     if (this.buffer.size !== this.arrayBuffer.byteLength) {
       this.buffer.destroy();
@@ -142,5 +155,6 @@ export abstract class WebGpuBufferBBOArray<
     }
     this.device.queue.writeBuffer(this.buffer, 0, this.arrayBuffer);
     this.dirty = false;
+    return true;
   }
 }

@@ -86,6 +86,7 @@ async function loadSparseLabelVolumesIntoAnnotations(
       color: [color.r / 255, color.g / 255, color.b / 255, 1],
       enabled: false,
     });
+    volume.setShownAnnotation(i, false);
   }
   for (let i = 0; i < sparseVolumeArray.length; i++) {
     const sparseVolume = sparseVolumeArray[i];
@@ -103,6 +104,7 @@ async function loadSparseLabelVolumesIntoAnnotations(
       color: [r, g, b, 1],
       enabled: true,
     });
+    volume.setShownAnnotation(i, true);
   }
 }
 
