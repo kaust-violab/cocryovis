@@ -15,7 +15,7 @@ export class ChannelData extends WebGpuBufferBBOArray<
 > {
   constructor(device: GPUDevice) {
     super(device, channelParametersDescriptor, "ChannelData Buffer", 4, {
-      align: 16,
+      align: 8,
     });
   }
 
