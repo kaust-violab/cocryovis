@@ -95,7 +95,7 @@ export default class SparseLabeledVolumeData extends VolumeData {
     volumeId: number,
     settings: z.infer<typeof volumeSettings>,
     tx: Prisma.TransactionClient = prismaManager.db
-  ): Promise<SparseLabelVolumeDataDB> {
+  ): Promise<SparseVolumeDataWithFileDB> {
     const fileName = path.basename(filePath);
     const sparseVolume = await tx.sparseLabelVolumeData.create({
       data: {
@@ -121,21 +121,19 @@ export default class SparseLabeledVolumeData extends VolumeData {
       sparseVolume.dataFileId
     );
     const newFilePath = path.join(folderPath, fileName);
-    await fsPromises.rename(filePath, newFilePath);
-    let dataFile: { path: string | null } | null = null;
     try {
-      dataFile = await tx.sparseVolumeDataFile.update({
-        where: { id: sparseVolume.id },
+      await fsPromises.rename(filePath, newFilePath);
+      const dataFile = await tx.sparseVolumeDataFile.update({
+        where: { id: sparseVolume.dataFileId },
         data: {
           path: folderPath,
           rawFilePath: newFilePath,
         },
       });
+      return { ...sparseVolume, dataFile };
     } catch (error) {
       try {
-        if (dataFile) {
-          await SparseVolumeDataFile.removeFilesFromDisc(dataFile);
-        }
+        await fsPromises.rm(folderPath, { recursive: true, force: true });
       } catch (err) {
         console.error(
           `Failed to delete volume data folder on failed operation:\n${String(err)}`
@@ -143,8 +141,6 @@ export default class SparseLabeledVolumeData extends VolumeData {
       }
       throw error;
     }
-
-    return sparseVolume;
   }
 
   static async setRawData(
@@ -173,7 +169,7 @@ export default class SparseLabeledVolumeData extends VolumeData {
         return await tx.sparseLabelVolumeData.update({
           where: { id: id },
           data: {
-            id: fileData.id,
+            dataFileId: fileData.id,
           },
         });
       }

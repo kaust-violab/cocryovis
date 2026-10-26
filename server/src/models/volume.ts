@@ -203,7 +203,7 @@ export default class Volume extends DatabaseModel {
     volumeId: number,
     originalLabels: SparseVolumeDataWithFileDB[],
     client?: Prisma.TransactionClient
-  ): Promise<PseudoLabelVolumeDataDB[] | undefined> {
+  ): Promise<PseudoLabelVolumeDataDB[]> {
     return await withTransaction(client, async (tx) => {
       const volume = await tx.volume.findUnique({
         where: { id: volumeId },
@@ -231,15 +231,23 @@ export default class Volume extends DatabaseModel {
 
       const newPseudoLabels: PseudoLabelVolumeDataDB[] = [];
       try {
-        for (let i = 0; i < files.length; i++) {
-          const filePath = path.join(folderPath, files[i]);
+        for (const file of files) {
+          // h5-to-labels.py writes <name>_label_<index>.raw, where index is the
+          // position of the original label in the stack passed to Ilastik.
+          const match = /_label_(\d+)\.raw$/.exec(file);
+          const originalLabel = match
+            ? originalLabels.at(Number(match[1]))
+            : undefined;
+          if (!originalLabel) {
+            throw new ApiError(500, `Unexpected pseudo label file: ${file}`);
+          }
           const pseudoLabelVolumeData =
             await PseudoLabeledVolumeData.fromRawFile(
-              filePath,
+              path.join(folderPath, file),
               creatorId,
               volumeId,
-              originalLabels[i].id,
-              originalLabels[i],
+              originalLabel.id,
+              originalLabel,
               tx
             );
           if (pseudoLabelVolumeData.dataFile.path) {
@@ -249,17 +257,15 @@ export default class Volume extends DatabaseModel {
         }
 
         return newPseudoLabels;
-      } catch {
+      } catch (error) {
         newFolders.forEach((folder) => {
-          try {
-            void fsPromises.rm(folder, {
-              recursive: true,
-              force: true,
+          fsPromises
+            .rm(folder, { recursive: true, force: true })
+            .catch((rmError: unknown) => {
+              console.error(rmError);
             });
-          } catch (error) {
-            console.log(error);
-          }
         });
+        throw error;
       }
     });
   }

@@ -198,7 +198,7 @@ export default class VolumeData extends DatabaseModel {
             throw MissingResourceError.fromId(volumeId, "volume");
           }
 
-          if (volume.rawData === undefined) {
+          if (volume.rawData === null) {
             await tx.volume.update({
               where: {
                 id: volumeId,
@@ -207,7 +207,7 @@ export default class VolumeData extends DatabaseModel {
                 physicalUnit: settings.physicalUnit,
                 physicalSizeX: settings.physicalSize.x,
                 physicalSizeY: settings.physicalSize.y,
-                physicalSizeZ: settings.physicalSize.y,
+                physicalSizeZ: settings.physicalSize.z,
               },
             });
           }

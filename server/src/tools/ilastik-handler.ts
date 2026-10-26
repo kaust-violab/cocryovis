@@ -37,7 +37,7 @@ type CheckedVolume = Omit<VolumeWithFileDeep, "rawData" | "sparseVolumes"> & {
   })[];
 };
 
-class LabelGenerationTask extends Task<PseudoLabelVolumeDataDB[] | undefined> {
+class LabelGenerationTask extends Task<PseudoLabelVolumeDataDB[]> {
   private ilastikHandler: IlastikHandler;
   private volumeId: number;
   private outputPath: string;
@@ -62,7 +62,7 @@ class LabelGenerationTask extends Task<PseudoLabelVolumeDataDB[] | undefined> {
     };
   }
 
-  override async execute(): Promise<PseudoLabelVolumeDataDB[] | undefined> {
+  override async execute(): Promise<PseudoLabelVolumeDataDB[]> {
     return await this.ilastikHandler.generateLabels(
       this.volumeId,
       this.userId,
@@ -180,7 +180,7 @@ export default class IlastikHandler {
     userId: number,
     outputPath: string,
     logFile?: LogFile
-  ): Promise<PseudoLabelVolumeDataDB[] | undefined> {
+  ): Promise<PseudoLabelVolumeDataDB[]> {
     try {
       const volume = await Volume.getByIdWithFileDeep(volumeId);
 

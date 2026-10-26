@@ -105,21 +105,13 @@ export default class Model extends DatabaseModel {
       throw MissingResourceError.fromId(sourceId, this.modelName);
     }
 
-    const newModelData = {
-      name: sourceModel.name,
-      description: sourceModel.description,
-      creatorId: creatorId,
-      projectId,
-    };
-
-    if (projectId != null) {
-      (newModelData as Record<string, unknown>).projects = {
-        connect: { id: projectId },
-      };
-    }
-
     const newModel = await tx.model.create({
-      data: newModelData as Prisma.ModelUncheckedCreateInput,
+      data: {
+        name: sourceModel.name,
+        description: sourceModel.description,
+        creatorId: creatorId,
+        projectId: projectId ?? sourceModel.projectId,
+      },
     });
 
     return newModel;

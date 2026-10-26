@@ -140,21 +140,19 @@ export default class PseudoLabeledVolumeData extends VolumeData {
     );
 
     const newFilePath = path.join(folderPath, fileName);
-    await fsPromises.rename(filePath, newFilePath);
-    let dataFile: { path: string | null } | null = null;
     try {
-      dataFile = await client.pseudoVolumeDataFile.update({
-        where: { id: pseudoVolume.id },
+      await fsPromises.rename(filePath, newFilePath);
+      const dataFile = await client.pseudoVolumeDataFile.update({
+        where: { id: pseudoVolume.dataFileId },
         data: {
           path: folderPath,
           rawFilePath: newFilePath,
         },
       });
+      return { ...pseudoVolume, dataFile };
     } catch (error) {
       try {
-        if (dataFile) {
-          await PseudoVolumeDataFile.removeFilesFromDisc(dataFile);
-        }
+        await fsPromises.rm(folderPath, { recursive: true, force: true });
       } catch (err) {
         console.error(
           `Failed to delete volume data folder on failed operation:\n${String(err)}`
@@ -162,7 +160,5 @@ export default class PseudoLabeledVolumeData extends VolumeData {
       }
       throw error;
     }
-
-    return pseudoVolume;
   }
 }
