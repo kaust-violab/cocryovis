@@ -1,9 +1,7 @@
-// @ts-check
-
+import type { PseudoVolumeDataFile } from "@prisma/client";
 import DatabaseModel from "./database-model";
-/**
- * @typedef { import("@prisma/client").PseudoVolumeDataFile }PseudoVolumeDataFileDB
- */
+
+export type PseudoVolumeDataFileDB = PseudoVolumeDataFile;
 
 export default class VolumeDataFile extends DatabaseModel {
   static volumeDataFolder = "volume-data";

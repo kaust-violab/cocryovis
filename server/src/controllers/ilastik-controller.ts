@@ -2,6 +2,7 @@ import { idVolume } from "@cocryovis/schemas/componentSchemas/volume-schema";
 import validateSchema from "../tools/validate-schema";
 import type { Request, Response } from "express";
 import type IlastikHandler from "../tools/ilastik-handler";
+import { getSessionUser } from "../middleware/restrict";
 
 export default class IlastikController {
   static async queuePseudoLabelsGeneration(
@@ -13,7 +14,7 @@ export default class IlastikController {
 
     const taskHistory = await ilastik.queueLabelGeneration(
       params.idVolume,
-      req.session.user.id
+      getSessionUser(req).id
     );
 
     res.json({ taskId: taskHistory.id });

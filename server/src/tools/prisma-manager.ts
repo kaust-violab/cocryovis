@@ -1,8 +1,10 @@
-// @ts-check
-
 import { PrismaClient, Prisma } from "@prisma/client";
 
 class PrismaManager {
+  declare static instance: PrismaManager | undefined;
+
+  declare db: PrismaClient;
+
   constructor() {
     this.db = new PrismaClient({
       // log: ["query"],
@@ -20,10 +22,7 @@ class PrismaManager {
     // });
   }
 
-  /**
-   * @returns {PrismaManager}
-   */
-  static getInstance() {
+  static getInstance(): PrismaManager {
     if (!this.instance) {
       this.instance = new this();
     }

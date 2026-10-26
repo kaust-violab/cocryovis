@@ -1,33 +1,27 @@
-// @ts-check
-
 import { withTransaction } from "./database-model";
 import prismaManager from "../tools/prisma-manager";
 import { MissingResourceError } from "../tools/error-handler";
 import fs from "fs";
 import appConfig from "../tools/config";
 import path from "path";
-import { Prisma } from "@prisma/client";
+import type {
+  Prisma,
+  RawVolumeDataFile as PrismaRawVolumeDataFile,
+} from "@prisma/client";
 import VolumeDataFile from "./volume-data-file";
 
-/**
- * @typedef { import("@prisma/client").RawVolumeDataFile }RawVolumeDataFileDB
- */
+export type RawVolumeDataFileDB = PrismaRawVolumeDataFile;
 
 export default class RawVolumeDataFile extends VolumeDataFile {
-  static modelName = "rawVolumeDataFile";
+  static override modelName = "rawVolumeDataFile";
 
-  static get db() {
+  static override get db() {
     return prismaManager.db.rawVolumeDataFile;
   }
 
-  static get folderPath() {
-    return "raw-data";
-  }
+  static readonly folderPath = "raw-data";
 
-  /**
-   * @param {number} id
-   */
-  static async getById(id) {
+  static override async getById(id: number) {
     const entry = await this.db.findUnique({
       where: { id: id },
     });
@@ -37,19 +31,13 @@ export default class RawVolumeDataFile extends VolumeDataFile {
     return entry;
   }
 
-  /**
-   * @param {import("@prisma/client").Prisma.RawVolumeDataFileCreateInput} data
-   */
-  static async create(data) {
+  static override async create(data: Prisma.RawVolumeDataFileCreateInput) {
     return await this.db.create({
       data: data,
     });
   }
 
-  /**
-   * @param {number} id
-   */
-  static async createVolumeDataFolder(id) {
+  static async createVolumeDataFolder(id: number) {
     const folderPath = path.join(
       appConfig.dataPath,
       this.volumeDataFolder,
@@ -70,21 +58,17 @@ export default class RawVolumeDataFile extends VolumeDataFile {
     return folderPath;
   }
 
-  /**
-   * @param {number} id
-   * @param {import("@prisma/client").Prisma.RawVolumeDataFileUpdateInput} changes
-   * @returns {Promise<RawVolumeDataFileDB>}
-   */
-  static async update(id, changes) {
-    return await super.update(id, changes);
+  static override async update(
+    id: number,
+    changes: Prisma.RawVolumeDataFileUpdateInput
+  ): Promise<RawVolumeDataFileDB> {
+    return (await super.update(id, changes)) as RawVolumeDataFileDB;
   }
 
-  /**
-   * @param {number} id
-   * @param {Prisma.TransactionClient | undefined} [client]
-   * @returns { Promise<RawVolumeDataFileDB> }
-   */
-  static async del(id, client) {
+  static override async del(
+    id: number,
+    client?: Prisma.TransactionClient
+  ): Promise<RawVolumeDataFileDB> {
     return await withTransaction(client, async (tx) => {
       const dataFile = await tx.rawVolumeDataFile.delete({
         where: {
@@ -95,16 +79,13 @@ export default class RawVolumeDataFile extends VolumeDataFile {
         },
       });
       if (dataFile) {
-        RawVolumeDataFile.removeFilesFromDisc(dataFile);
+        void RawVolumeDataFile.removeFilesFromDisc(dataFile);
       }
       return dataFile;
     });
   }
-  /**
-   * @param {Prisma.TransactionClient | undefined} [client]
-   */
-  static async deleteZombies(client) {
-    return await withTransaction(client, async (tx) => {
+  static async deleteZombies(client?: Prisma.TransactionClient) {
+    await withTransaction(client, async (tx) => {
       const rawFiles = await tx.rawVolumeDataFile.findMany({
         where: {
           rawVolumeData: {
@@ -127,10 +108,10 @@ export default class RawVolumeDataFile extends VolumeDataFile {
     });
   }
 
-  /**
-   * @param {{path:string}} data
-   */
-  static async removeFilesFromDisc(data) {
-    fs.promises.rm(data.path, { force: true, recursive: true });
+  static removeFilesFromDisc(data: { path: string | null }): Promise<void> {
+    if (data.path) {
+      void fs.promises.rm(data.path, { force: true, recursive: true });
+    }
+    return Promise.resolve();
   }
 }

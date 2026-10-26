@@ -1,26 +1,21 @@
 import { readFileSync } from "fs";
 
-/**
- * @type {{ bcryptCost: number }}
- */
-export const securityConfig = {
+export const securityConfig: { bcryptCost: number } = {
   bcryptCost: parseInt(process.env.BCRYPT_COST ?? "10", 10),
 };
 
 class Config {
-  /**
-   * @type {AppConfig}
-   */
-  config;
+  declare static instance: Config | undefined;
+
+  config: AppConfig;
 
   constructor() {
-    /**
-     * @type {AppConfig}
-     */
-    this.config = JSON.parse(readFileSync("./config.json", "utf8"));
+    this.config = JSON.parse(
+      readFileSync("./config.json", "utf8")
+    ) as AppConfig;
   }
 
-  static getInstance() {
+  static getInstance(): Config {
     if (!this.instance) {
       this.instance = new this();
     }

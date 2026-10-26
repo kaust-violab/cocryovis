@@ -1,31 +1,27 @@
-// @ts-check
-
 import DatabaseModel from "./database-model";
 import prismaManager from "../tools/prisma-manager";
 import WriteLockManager from "../tools/write-lock-manager";
 import Project from "./project";
 import { MissingResourceError } from "../tools/error-handler";
+import type { Prisma, Model as PrismaModel } from "@prisma/client";
+import type z from "zod";
+import type { getModelQuerySchema } from "@cocryovis/schemas/models-path-schema";
 
-/**
- * @typedef { import("@prisma/client").Model } ModelDB
- * @import z from "zod"
- * @import { getModelQuerySchema } from "@cocryovis/schemas/models-path-schema";
- * @typedef {z.infer<typeof getModelQuerySchema>} Options
- */
+export type ModelDB = PrismaModel;
+export type Options = z.infer<typeof getModelQuerySchema>;
 
 export default class Model extends DatabaseModel {
-  static modelName = "model";
-  static lockManager = new WriteLockManager(this.modelName);
+  static override modelName = "model";
+  static override lockManager = new WriteLockManager(this.modelName);
 
-  static get db() {
+  static override get db() {
     return prismaManager.db.model;
   }
 
-  /**
-   * @param {number} id
-   * @param {Options} options
-   */
-  static async getById(id, { checkpoints = false, project = false } = {}) {
+  static override async getById(
+    id: number,
+    { checkpoints = false, project = false }: Options = {}
+  ) {
     const entry = await this.db.findUniqueOrThrow({
       where: { id: id },
       include: {
@@ -39,21 +35,13 @@ export default class Model extends DatabaseModel {
     return entry;
   }
 
-  /**
-   * @param {number[]} ids
-   * @returns {Promise<ModelDB[]>}
-   */
-  static async getByIds(ids) {
-    return await super.getByIds(ids);
+  static override async getByIds(ids: number[]): Promise<ModelDB[]> {
+    return (await super.getByIds(ids)) as ModelDB[];
   }
 
-  /**
-   * @param {number} projectId
-   * @param {Options} options
-   */
   static async getModelsFromProject(
-    projectId,
-    { checkpoints = false, project = false } = {}
+    projectId: number,
+    { checkpoints = false, project = false }: Options = {}
   ) {
     return await this.db.findMany({
       where: {
@@ -68,14 +56,12 @@ export default class Model extends DatabaseModel {
     });
   }
 
-  /**
-   * @param {string} name
-   * @param {string} description
-   * @param {number} creatorId
-   * @param {number} projectId
-   * @returns {Promise<ModelDB>}
-   */
-  static async create(name, description, creatorId, projectId) {
+  static override async create(
+    name: string,
+    description: string,
+    creatorId: number,
+    projectId: number
+  ): Promise<ModelDB> {
     return Project.withWriteLock(projectId, [this.modelName], () => {
       return this.db.create({
         data: {
@@ -88,26 +74,22 @@ export default class Model extends DatabaseModel {
     });
   }
 
-  /**
-   * @param {number} sourceId
-   * @param {number} creatorId
-   * @param {number} projectId
-   * @returns {Promise<ModelDB>}
-   */
-  static async clone(sourceId, creatorId, projectId) {
+  static async clone(
+    sourceId: number,
+    creatorId: number,
+    projectId: number
+  ): Promise<ModelDB> {
     return await prismaManager.db.$transaction(async (tx) => {
       return this.cloneTransaction(tx, sourceId, creatorId, projectId);
     });
   }
 
-  /**
-   * @param {import("@prisma/client").Prisma.TransactionClient} tx
-   * @param {number} sourceId
-   * @param {number} creatorId
-   * @param {number?} projectId
-   * @returns {Promise<ModelDB>}
-   */
-  static async cloneTransaction(tx, sourceId, creatorId, projectId = null) {
+  static async cloneTransaction(
+    tx: Prisma.TransactionClient,
+    sourceId: number,
+    creatorId: number,
+    projectId: number | null = null
+  ): Promise<ModelDB> {
     const sourceModel = await tx.model.findUnique({
       where: { id: sourceId },
       include: {
@@ -131,32 +113,26 @@ export default class Model extends DatabaseModel {
     };
 
     if (projectId != null) {
-      newModelData.projects = {
+      (newModelData as Record<string, unknown>).projects = {
         connect: { id: projectId },
       };
     }
 
     const newModel = await tx.model.create({
-      data: newModelData,
+      data: newModelData as Prisma.ModelUncheckedCreateInput,
     });
 
     return newModel;
   }
 
-  /**
-   * @param {number} id
-   * @param {import("@prisma/client").Prisma.ModelUpdateInput} changes
-   * @returns {Promise<ModelDB>}
-   */
-  static async update(id, changes) {
-    return await super.update(id, changes);
+  static override async update(
+    id: number,
+    changes: Prisma.ModelUpdateInput
+  ): Promise<ModelDB> {
+    return (await super.update(id, changes)) as ModelDB;
   }
 
-  /**
-   * @param {number} modelId
-   * @returns { Promise<ModelDB> }
-   */
-  static async del(modelId) {
+  static override async del(modelId: number): Promise<ModelDB> {
     return await this.withWriteLock(modelId, null, async () => {
       return this.db.delete({
         where: { id: modelId },

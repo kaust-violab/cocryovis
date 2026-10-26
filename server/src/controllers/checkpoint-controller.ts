@@ -1,56 +1,39 @@
-// @ts-check
-
+import { type Request, type Response } from "express";
 import Checkpoint from "../models/checkpoint";
 import { ApiError } from "../tools/error-handler";
 import { prepareDataForDownload } from "../tools/file-handler";
 import path from "path";
 import Utils from "../tools/utils";
-import fileUpload from "express-fileupload";
+import type fileUpload from "express-fileupload";
 import { idCheckpoint } from "@cocryovis/schemas/componentSchemas/checkpoint-schema";
 import validateSchema from "../tools/validate-schema";
 import { idModel } from "@cocryovis/schemas/componentSchemas/model-schema";
-
-/**
- * @typedef { import("express").Request } Request
- * @typedef { import("express").Response } Response
- */
+import { getSessionUser } from "../middleware/restrict";
 
 export default class CheckpointController {
-  /**
-   * @param {Request} req
-   * @param {Response} res
-   */
-  static getCheckpoint = async (req, res) => {
+  static getCheckpoint = async (req: Request, res: Response) => {
     const { params } = validateSchema(req, { paramsSchema: idCheckpoint });
 
     const checkpoint = await Checkpoint.getById(params.idCheckpoint);
     res.json(checkpoint);
   };
 
-  /**
-   * @param {Request} req
-   * @param {Response} res
-   */
-  static getCheckpointsFromModel = async (req, res) => {
+  static getCheckpointsFromModel = async (req: Request, res: Response) => {
     const { params } = validateSchema(req, { paramsSchema: idModel });
 
     const checkpoints = await Checkpoint.getFromModel(params.idModel);
     res.json(checkpoints);
   };
 
-  /**
-   * @param {Request} req
-   * @param {Response} res
-   */
-  static uploadCheckpoints = async (req, res) => {
+  static uploadCheckpoints = async (req: Request, res: Response) => {
     const { params } = validateSchema(req, { paramsSchema: idModel });
 
-    if (!req.files || !req.files.files) {
+    if (!req.files?.files) {
       throw new ApiError(400, "No files uploaded.");
     }
 
     const checkpoints = await Checkpoint.createFromFiles(
-      Number(req.session.user.id),
+      getSessionUser(req).id,
       params.idModel,
       Array.isArray(req.files.files) ? req.files.files : [req.files.files]
     );
@@ -58,15 +41,14 @@ export default class CheckpointController {
     res.status(201).json(checkpoints);
   };
 
-  /**
-   * @param {Request} req
-   * @param {Response} res
-   */
-  static downloadCheckpoint = async (req, res) => {
+  static downloadCheckpoint = async (req: Request, res: Response) => {
     const { params } = validateSchema(req, { paramsSchema: idCheckpoint });
 
     const checkpoint = await Checkpoint.getById(params.idCheckpoint);
-    let data = prepareDataForDownload(
+    if (!checkpoint.filePath) {
+      throw new ApiError(404, "Checkpoint has no file to download.");
+    }
+    const data = prepareDataForDownload(
       [checkpoint.filePath],
       path.basename(checkpoint.filePath)
     );
@@ -75,11 +57,7 @@ export default class CheckpointController {
     res.send(data.zipBuffer);
   };
 
-  /**
-   * @param {Request} req
-   * @param {Response} res
-   */
-  static deleteCheckpoint = async (req, res) => {
+  static deleteCheckpoint = async (req: Request, res: Response) => {
     const { params } = validateSchema(req, {
       paramsSchema: idCheckpoint,
     });
@@ -89,11 +67,7 @@ export default class CheckpointController {
     res.sendStatus(204);
   };
 
-  /**
-   * @param {Request} req
-   * @param {Response} res
-   */
-  static checkpointToText = async (req, res) => {
+  static checkpointToText = async (req: Request, res: Response) => {
     const { params } = validateSchema(req, { paramsSchema: idCheckpoint });
 
     const checkpoint = await Checkpoint.getById(params.idCheckpoint);
@@ -107,12 +81,8 @@ export default class CheckpointController {
     res.send(checkpointTxt);
   };
 
-  /**
-   * @param {Request} req
-   * @param {Response} res
-   */
-  static checkpointFileToText = async (req, res) => {
-    if (!req.files || !req.files.checkpoint) {
+  static checkpointFileToText = async (req: Request, res: Response) => {
+    if (!req.files?.checkpoint) {
       throw new ApiError(400, "No files uploaded.");
     }
 
@@ -123,8 +93,7 @@ export default class CheckpointController {
       );
     }
 
-    /** @type {fileUpload.UploadedFile} */
-    const checkpointFile = req.files.checkpoint;
+    const checkpointFile: fileUpload.UploadedFile = req.files.checkpoint;
     //FIXME bad error output
     const checkpointTxt = await Utils.ckptToText(checkpointFile.tempFilePath);
 

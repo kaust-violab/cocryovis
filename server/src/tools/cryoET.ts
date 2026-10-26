@@ -1,18 +1,13 @@
-// @ts-check
-
 import Utils from "./utils";
-
-/**
- * @import z from "zod"
- * @import { tomogramSchema } from "@cocryovis/schemas/cryoEt-path-schema"
- */
+import type z from "zod";
+import type { tomogramSchema } from "@cocryovis/schemas/cryoEt-path-schema";
 
 /**
  * Fetch cryoET tomogram metadata by id
- * @param {number} id
- * @returns {Promise<z.infer<tomogramSchema>>}
  */
-export async function fetchCtyoETTomogramMetadata(id) {
+export async function fetchCtyoETTomogramMetadata(
+  id: number
+): Promise<z.infer<typeof tomogramSchema>> {
   let errOutput = "";
 
   try {
@@ -23,7 +18,7 @@ export async function fetchCtyoETTomogramMetadata(id) {
       (value) => (output += value),
       (value) => (errOutput += value)
     );
-    return JSON.parse(output);
+    return JSON.parse(output) as z.infer<typeof tomogramSchema>;
   } catch {
     throw new Error("Failed to fetch cryoET tomogram metadata: " + errOutput);
   }

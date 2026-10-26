@@ -79,6 +79,8 @@ export default defineConfig([
       "@typescript-eslint/consistent-type-imports": "error",
       "@typescript-eslint/no-extraneous-class": "off",
       "@typescript-eslint/no-useless-default-assignment": "off",
+      // Conflicts with no-non-null-assertion; prefer explicit `as` casts.
+      "@typescript-eslint/non-nullable-type-assertion-style": "off",
     },
   },
   globalIgnores([

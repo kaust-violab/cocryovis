@@ -14,7 +14,7 @@ import type GPUTaskHandler from "./gpu-task-handler";
 import fs from "fs";
 import { GPUTask } from "./gpu-task-handler";
 import type GPUResourcesManager from "./gpu-resources-manager";
-import { Deferred } from "./task-queue";
+import { Deferred, type QueuedTaskHistory } from "./task-queue";
 import type { tiltSeriesOptions } from "@cocryovis/schemas/componentSchemas/tilt-series-schema";
 import moduleConfigLoader from "./module-config-loader";
 import { imodConfigSchema, IMODModule } from "../modules/imod-module";
@@ -106,7 +106,7 @@ export default class ReconstructionHandler {
     options: z.infer<typeof tiltSeriesOptions>,
     volumeId: number,
     userId: number
-  ): Promise<TaskHistoryDB> {
+  ): Promise<QueuedTaskHistory> {
     if (!this.gpuTaskHandler.canRunTask()) {
       throw new ApiError(
         400,
@@ -122,7 +122,7 @@ export default class ReconstructionHandler {
       ]),
     ]);
 
-    const defferedHistory = new Deferred<TaskHistoryDB>();
+    const defferedHistory = new Deferred<QueuedTaskHistory>();
 
     WriteMultiLock.withWriteMultiLock(multiLock, async () => {
       try {

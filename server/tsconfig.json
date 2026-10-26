@@ -6,10 +6,17 @@
     "target": "ES2024",
     "module": "es2022",
     "moduleResolution": "bundler",
-    "strict": false,
-    "allowJs": true,
-    "checkJs": true,
-    "esModuleInterop": true
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+
+    // esbuild (tsup/tsx) compiles each file in isolation
+    "isolatedModules": true,
+    "verbatimModuleSyntax": true,
+
+    "strict": true,
+    "noImplicitOverride": true,
+    "noFallthroughCasesInSwitch": true,
+    "forceConsistentCasingInFileNames": true
   },
   "include": ["src"]
 }

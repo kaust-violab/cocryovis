@@ -1,5 +1,3 @@
-// @ts-check
-
 import DatabaseModel, { withTransaction } from "./database-model";
 import prismaManager from "../tools/prisma-manager";
 import fsPromises from "node:fs/promises";
@@ -9,47 +7,44 @@ import fileSystem from "fs";
 import RawVolumeData from "./raw-volume-data";
 import WriteLockManager from "../tools/write-lock-manager";
 import { ApiError, MissingResourceError } from "../tools/error-handler";
-import fileUpload from "express-fileupload";
+import type fileUpload from "express-fileupload";
 import { unpackFiles } from "../tools/file-handler";
 import Utils from "../tools/utils";
-import { Prisma } from "@prisma/client";
+import type { Prisma, Result as PrismaResult } from "@prisma/client";
 import ResultVolume from "./result-volume";
 import { volumeSettings } from "@cocryovis/schemas/componentSchemas/volume-settings-schema";
 import ResultDataFile from "./result-data-file";
 
-/**
- * @typedef { import("@prisma/client").Result } ResultDB
- * @typedef { { name: string, rawFileName: string, settingsFileName: string, index: number, rawVolumeChannel?: boolean } } ResultConfig
- */
+export type ResultDB = PrismaResult;
+export interface ResultConfig {
+  name: string;
+  rawFileName: string;
+  settingsFileName: string;
+  index: number;
+  rawVolumeChannel?: boolean;
+}
 
 export default class Result extends DatabaseModel {
   static resultsFolder = "results";
   static acceptedFileExtensions = [".log", ".raw", ".json"];
-  static modelName = "result";
-  static lockManager = new WriteLockManager(this.modelName);
+  static override modelName = "result";
+  static override lockManager = new WriteLockManager(this.modelName);
 
-  static get db() {
+  static override get db() {
     return prismaManager.db.result;
   }
 
-  /**
-   * @param {number} id
-   * @returns {Promise<ResultDB>}
-   */
-  static async getById(id) {
-    return await super.getById(id);
+  static override async getById(id: number): Promise<ResultDB> {
+    return (await super.getById(id)) as ResultDB;
   }
 
-  /**
-   * @param {number} volumeId
-   * @param {object} options
-   * @param {boolean} [options.checkpoint]
-   * @param {boolean} [options.volume]
-   * @param {boolean} [options.resultVolumes]
-   */
   static async getFromVolume(
-    volumeId,
-    { checkpoint = false, volume = false, resultVolumes = false }
+    volumeId: number,
+    {
+      checkpoint = false,
+      volume = false,
+      resultVolumes = false,
+    }: { checkpoint?: boolean; volume?: boolean; resultVolumes?: boolean }
   ) {
     const results = await this.db.findMany({
       where: {
@@ -65,16 +60,13 @@ export default class Result extends DatabaseModel {
     return results;
   }
 
-  /**
-   * @param {number} id
-   * @param {object} options
-   * @param {boolean} [options.checkpoint]
-   * @param {boolean} [options.volume]
-   * @param {boolean} [options.resultVolumes]
-   */
   static async getByIdDeep(
-    id,
-    { checkpoint = false, volume = false, resultVolumes = false }
+    id: number,
+    {
+      checkpoint = false,
+      volume = false,
+      resultVolumes = false,
+    }: { checkpoint?: boolean; volume?: boolean; resultVolumes?: boolean }
   ) {
     const result = await this.db.findUnique({
       where: {
@@ -92,12 +84,11 @@ export default class Result extends DatabaseModel {
     return result;
   }
 
-  /**
-   * @param {number} creatorId
-   * @param {number} checkpointId
-   * @param {number} volumeId
-   */
-  static async create(creatorId, checkpointId, volumeId) {
+  static override async create(
+    creatorId: number,
+    checkpointId: number,
+    volumeId: number
+  ) {
     return await this.db.create({
       data: {
         creatorId: creatorId,
@@ -107,28 +98,18 @@ export default class Result extends DatabaseModel {
     });
   }
 
-  /**
-   * @param {number} creatorId
-   * @param {number} checkpointId
-   * @param {number} volumeId
-   * @param {ResultConfig[]} config
-   * @param {string} folderPath
-   * @param {string?} logFile
-   * @param {Prisma.TransactionClient | undefined} [client]
-   */
   static async createFromFolder(
-    creatorId,
-    checkpointId,
-    volumeId,
-    config,
-    folderPath,
-    logFile = null,
-    client
+    creatorId: number,
+    checkpointId: number,
+    volumeId: number,
+    config: ResultConfig[],
+    folderPath: string,
+    logFile: string | null = null,
+    client?: Prisma.TransactionClient
   ) {
     try {
       return await withTransaction(client, async (tx) => {
-        /** @type {ResultDB} */
-        let result = await tx.result.create({
+        let result: ResultDB = await tx.result.create({
           data: {
             creatorId: creatorId,
             checkpointId: checkpointId,
@@ -136,7 +117,7 @@ export default class Result extends DatabaseModel {
           },
         });
 
-        let rawVolumeChannel = null;
+        let rawVolumeChannel: number | null = null;
 
         for (const fileDescriptor of config) {
           const rawFilePath = path.join(folderPath, fileDescriptor.rawFileName);
@@ -206,7 +187,7 @@ export default class Result extends DatabaseModel {
         });
       } catch (fsError) {
         console.error(
-          `Error cleaning up result creation folder: ${fsError.message}`
+          `Error cleaning up result creation folder: ${(fsError as Error).message}`
         );
       }
       throw error;
@@ -218,31 +199,27 @@ export default class Result extends DatabaseModel {
         });
       } catch (fsError) {
         console.error(
-          `Error cleaning up result creation folder: ${fsError.message}`
+          `Error cleaning up result creation folder: ${(fsError as Error).message}`
         );
       }
     }
   }
 
-  /**
-   * @param {number} creatorId
-   * @param {number} checkpointId
-   * @param {number} volumeId
-   * @param {{name: string, index: number, rawVolumeChannel?: boolean}[]} volumeDescriptors
-   * @param {fileUpload.UploadedFile[]} files
-   * @param {Prisma.TransactionClient | undefined} [client]
-   */
   static async createFromFiles(
-    creatorId,
-    checkpointId,
-    volumeId,
-    volumeDescriptors,
-    files,
-    client
+    creatorId: number,
+    checkpointId: number,
+    volumeId: number,
+    volumeDescriptors: {
+      name: string;
+      index: number;
+      rawVolumeChannel?: boolean;
+    }[],
+    files: fileUpload.UploadedFile[],
+    client?: Prisma.TransactionClient
   ) {
     const volumeData = await RawVolumeData.getFromVolumeIdWithData(volumeId);
 
-    if (!volumeData.dataFile.rawFilePath) {
+    if (!volumeData?.dataFile.rawFilePath) {
       throw new ApiError(400, "Source Volume Data is missing a raw file.");
     }
 
@@ -250,13 +227,13 @@ export default class Result extends DatabaseModel {
 
     const resultsFolderPath = path.join(appConfig.dataPath, this.resultsFolder);
 
-    fsPromises.mkdir(resultsFolderPath, {
+    void fsPromises.mkdir(resultsFolderPath, {
       recursive: true,
     });
 
-    let resultPath = null;
-    let meanFilteredTmpFolder = null;
-    let meanFilteredFilePath = null;
+    const resultPath: string | null = null;
+    let meanFilteredTmpFolder: string | null = null;
+    let meanFilteredFilePath: string | null = null;
 
     if (
       !volumeDescriptors.some((volume) => volume?.rawVolumeChannel === true)
@@ -285,8 +262,7 @@ export default class Result extends DatabaseModel {
 
     try {
       return await withTransaction(client, async (tx) => {
-        /** @type {ResultDB} */
-        let result = await tx.result.create({
+        let result: ResultDB = await tx.result.create({
           data: {
             creatorId: creatorId,
             checkpointId: checkpointId,
@@ -294,7 +270,7 @@ export default class Result extends DatabaseModel {
           },
         });
 
-        let rawVolumeChannel = null;
+        let rawVolumeChannel: number | null = null;
 
         for (const [i, pendingFile] of pendingFiles.entries()) {
           await ResultVolume.create(
@@ -333,8 +309,8 @@ export default class Result extends DatabaseModel {
             .sort((a, b) => a - b);
 
           let index = 0;
-          for (let i = 0; i < usedIndices.length; i++) {
-            if (usedIndices[i] !== index) {
+          for (const usedIndex of usedIndices) {
+            if (usedIndex !== index) {
               break;
             }
             index++;
@@ -395,21 +371,17 @@ export default class Result extends DatabaseModel {
     }
   }
 
-  /**
-   * @param {number} id
-   * @param {import("@prisma/client").Prisma.ResultUpdateInput} changes
-   * @returns {Promise<ResultDB>}
-   */
-  static async update(id, changes) {
-    return await super.update(id, changes);
+  static override async update(
+    id: number,
+    changes: Prisma.ResultUpdateInput
+  ): Promise<ResultDB> {
+    return (await super.update(id, changes)) as ResultDB;
   }
 
-  /**
-   * @param {number} resultId
-   * @param {Prisma.TransactionClient | undefined} [client]
-   * @returns {Promise<ResultDB>}
-   */
-  static async del(resultId, client) {
+  static override async del(
+    resultId: number,
+    client?: Prisma.TransactionClient
+  ): Promise<ResultDB> {
     return await withTransaction(client, async (tx) => {
       const result = await tx.result.delete({
         where: { id: resultId },
@@ -421,12 +393,7 @@ export default class Result extends DatabaseModel {
     });
   }
 
-  /**
-   * @param {number} id
-   * @param {boolean} create
-   * @returns {Promise<string>}
-   */
-  static async reserveFolderName(id, create = false) {
+  static async reserveFolderName(id: number, create = false): Promise<string> {
     const resultsFolderPath = path.join(appConfig.dataPath, this.resultsFolder);
     const folderPath = path.join(resultsFolderPath, id.toString());
     await fsPromises.mkdir(resultsFolderPath, { recursive: true });

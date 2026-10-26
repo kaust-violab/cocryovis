@@ -1,48 +1,31 @@
-// @ts-check
-
-import VolumeData from "./volume-data";
+import VolumeData, { type CreateFromFilesOptions } from "./volume-data";
 import prismaManager from "../tools/prisma-manager";
 import fsPromises from "fs/promises";
 import path from "path";
 import WriteLockManager from "../tools/write-lock-manager";
 import Utils from "../tools/utils";
 import SparseVolumeDataFile from "./sparse-volume-data-file";
-import { Prisma } from "@prisma/client";
+import type { Prisma } from "@prisma/client";
+import type z from "zod";
+import type { volumeSettings } from "@cocryovis/schemas/componentSchemas/volume-settings-schema";
 import { withTransaction } from "./database-model";
+import type { PendingUpload } from "../tools/file-handler";
 
-/**
- * @import z from "zod"
- * @import { tiltSeriesOptions } from "@cocryovis/schemas/componentSchemas/tilt-series-schema";
- * @import { PendingUpload } from "../tools/file-handler";
- * @import { volumeSettings } from "@cocryovis/schemas/componentSchemas/volume-settings-schema";
- * @typedef { import("@prisma/client").SparseLabelVolumeData } SparseLabelVolumeDataDB
- */
-
-/**
- * @augments {VolumeData}
- */
 export default class SparseLabeledVolumeData extends VolumeData {
-  static modelName = "sparseLabelVolumeData";
-  static fileModelName = "sparseVolumeDataFile";
-  static lockManager = new WriteLockManager(this.modelName);
-  static fileClass = SparseVolumeDataFile;
+  static override modelName = "sparseLabelVolumeData";
+  static override fileModelName = "sparseVolumeDataFile";
+  static override lockManager = new WriteLockManager(this.modelName);
+  static override fileClass = SparseVolumeDataFile;
 
-  static get db() {
+  static override get db() {
     return prismaManager.db.sparseLabelVolumeData;
   }
 
-  /**
-   * @param {number} id
-   * @returns {Promise<SparseLabelVolumeDataDB>}
-   */
-  static async getById(id) {
-    return await super.getById(id);
+  static override async getById(id: number): Promise<SparseLabelVolumeDataDB> {
+    return (await super.getById(id)) as SparseLabelVolumeDataDB;
   }
 
-  /**
-   * @param {number} id
-   */
-  static async getWithData(id) {
+  static override async getWithData(id: number) {
     const volumeData = await this.db.findUniqueOrThrow({
       where: { id: id },
       include: {
@@ -52,48 +35,40 @@ export default class SparseLabeledVolumeData extends VolumeData {
     return volumeData;
   }
 
-  /**
-   * @param {number} creatorId
-   * @param {number} volumeId
-   * @returns {Promise<SparseLabelVolumeDataDB>}
-   */
-  static async create(creatorId, volumeId) {
-    return await super.create(creatorId, volumeId);
+  static override async create(
+    creatorId: number,
+    volumeId: number
+  ): Promise<SparseLabelVolumeDataDB> {
+    return (await super.create(creatorId, volumeId)) as SparseLabelVolumeDataDB;
   }
 
-  /**
-   * @param {number} creatorId
-   * @param {number} volumeId
-   * @param {PendingUpload[]} files
-   * @param {z.infer<typeof volumeSettings>} settings
-   * @param {{ skipLock?: boolean, client?: Prisma.TransactionClient, reconstructionParameters?: z.infer<tiltSeriesOptions> }} [options]
-   * @returns {Promise<SparseLabelVolumeDataDB>}
-   */
-  static async createFromFiles(creatorId, volumeId, files, settings, options) {
-    return await super.createFromFiles(
+  static override async createFromFiles(
+    creatorId: number,
+    volumeId: number,
+    files: PendingUpload[],
+    settings: z.infer<typeof volumeSettings>,
+    options?: CreateFromFilesOptions
+  ): Promise<SparseLabelVolumeDataDB> {
+    return (await super.createFromFiles(
       creatorId,
       volumeId,
       files,
       settings,
       options
-    );
+    )) as SparseLabelVolumeDataDB;
   }
 
-  /**
-   * @param {number} id
-   * @param {import("@prisma/client").Prisma.SparseLabelVolumeDataUpdateInput} changes
-   * @returns {Promise<SparseLabelVolumeDataDB>}
-   */
-  static async update(id, changes) {
-    return await super.update(id, changes);
+  static override async update(
+    id: number,
+    changes: Prisma.SparseLabelVolumeDataUpdateInput
+  ): Promise<SparseLabelVolumeDataDB> {
+    return (await super.update(id, changes)) as SparseLabelVolumeDataDB;
   }
 
-  /**
-   * @param {number} id
-   * @param {Prisma.TransactionClient | undefined} [client]
-   * @returns {Promise<SparseLabelVolumeDataDB>}
-   */
-  static async del(id, client) {
+  static override async del(
+    id: number,
+    client?: Prisma.TransactionClient
+  ): Promise<SparseLabelVolumeDataDB> {
     return await withTransaction(client, async (tx) => {
       const VolumeData = await tx.sparseLabelVolumeData.delete({
         where: { id: id },
@@ -114,23 +89,15 @@ export default class SparseLabeledVolumeData extends VolumeData {
     });
   }
 
-  /**
-   * @param {string} filePath
-   * @param {number} creatorId
-   * @param {number} volumeId
-   * @param {z.infer<typeof volumeSettings>} settings
-   * @param {import("@prisma/client").Prisma.TransactionClient} tx
-   * @returns {Promise<SparseLabelVolumeDataDB>}
-   */
   static async fromRawFile(
-    filePath,
-    creatorId,
-    volumeId,
-    settings,
-    tx = prismaManager.db
-  ) {
+    filePath: string,
+    creatorId: number,
+    volumeId: number,
+    settings: z.infer<typeof volumeSettings>,
+    tx: Prisma.TransactionClient = prismaManager.db
+  ): Promise<SparseLabelVolumeDataDB> {
     const fileName = path.basename(filePath);
-    let sparseVolume = await tx.sparseLabelVolumeData.create({
+    const sparseVolume = await tx.sparseLabelVolumeData.create({
       data: {
         creator: {
           connect: {
@@ -155,7 +122,7 @@ export default class SparseLabeledVolumeData extends VolumeData {
     );
     const newFilePath = path.join(folderPath, fileName);
     await fsPromises.rename(filePath, newFilePath);
-    let dataFile = null;
+    let dataFile: { path: string | null } | null = null;
     try {
       dataFile = await tx.sparseVolumeDataFile.update({
         where: { id: sparseVolume.id },
@@ -171,7 +138,7 @@ export default class SparseLabeledVolumeData extends VolumeData {
         }
       } catch (err) {
         console.error(
-          `Failed to delete volume data folder on failed operation:\n${err}`
+          `Failed to delete volume data folder on failed operation:\n${String(err)}`
         );
       }
       throw error;
@@ -180,12 +147,11 @@ export default class SparseLabeledVolumeData extends VolumeData {
     return sparseVolume;
   }
 
-  /**
-   * @param {number} id
-   * @param {PendingUpload} file
-   * @param {Prisma.TransactionClient | undefined} [client]
-   */
-  static async setRawData(id, file, client) {
+  static async setRawData(
+    id: number,
+    file: PendingUpload,
+    client?: Prisma.TransactionClient
+  ) {
     return await withTransaction(client, async (tx) => {
       const volumeData = await tx.sparseLabelVolumeData.findUniqueOrThrow({
         where: { id: id },

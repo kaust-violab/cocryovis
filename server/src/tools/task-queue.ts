@@ -16,9 +16,12 @@ export class Deferred<T> {
 
 export type TaskAction<T> = () => Promise<T>;
 
+/** A task history record as returned by TaskHistory.create (dates as ISO strings). */
+export type QueuedTaskHistory = Awaited<ReturnType<typeof TaskHistory.create>>;
+
 export abstract class Task<T = unknown> {
   protected userId: number;
-  protected taskHistory?: TaskHistoryDB;
+  protected taskHistory?: QueuedTaskHistory;
   protected logFile?: LogFile;
   protected abstract logName: string;
 
@@ -36,7 +39,7 @@ export abstract class Task<T = unknown> {
   //   return task;
   // }
 
-  public get history(): Readonly<TaskHistoryDB> | undefined {
+  public get history(): Readonly<QueuedTaskHistory> | undefined {
     return this.taskHistory;
   }
 
@@ -86,13 +89,14 @@ export abstract class Task<T = unknown> {
 
   public onEnd?(): void | Promise<void>;
 
-  public async onQueued(): Promise<TaskHistoryDB> {
+  public async onQueued(): Promise<QueuedTaskHistory> {
     this.taskHistory = await TaskHistory.create({
       userId: this.userId,
       taskType: TaskHistory.type.Inference,
       taskStatus: TaskHistory.status.enqueued,
       enqueuedTime: new Date(),
-      ...this.taskHistoryData?.(),
+      ...(this.taskHistoryData?.() as
+        Partial<Parameters<typeof TaskHistory.create>[0]> | undefined),
     });
     return this.taskHistory;
   }
@@ -147,7 +151,7 @@ export default class TaskQueue {
   }
 
   async enqueue<T>(task: Task<T>): Promise<{
-    taskHistory: TaskHistoryDB;
+    taskHistory: QueuedTaskHistory;
     executionPromise: Promise<T>;
   }> {
     this.startPolling();
@@ -160,7 +164,7 @@ export default class TaskQueue {
       task,
       resolve: deferred.resolve,
       reject: deferred.reject,
-    });
+    } as QueuedTask);
 
     void this.dequeue();
 

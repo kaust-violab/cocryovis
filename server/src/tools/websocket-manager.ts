@@ -1,8 +1,16 @@
-// @ts-check
-
-import WebSocket, { WebSocketServer } from "ws";
+import type { IncomingMessage, Server } from "http";
+import type { Duplex } from "stream";
+import type { Request, RequestHandler, Response } from "express";
+import type WebSocket from "ws";
+import { WebSocketServer } from "ws";
 import { sanitize } from "../middleware/sanitizer";
-import { isActiveSession, sessionExpired } from "../middleware/restrict";
+import {
+  getSessionUser,
+  isActiveSession,
+  sessionExpired,
+} from "../middleware/restrict";
+
+type WebSocketMessage = Parameters<WebSocket["send"]>[0];
 
 /**
  * Enum websocket broadcast actions.
@@ -22,14 +30,12 @@ export const ActionTypes = Object.freeze({
 
 // TODO: this sort of behaves like a singleton which is not ideal, should be rewritten.
 export default class WebSocketManager {
-  /** @type {WebSocketInstance?} */
-  static #webSocketInstance = null;
+  static #webSocketInstance: WebSocketInstance | null = null;
 
-  /**
-   * @param {import("http").Server} expressServer
-   * @param {import("express").RequestHandler} sessionParser
-   */
-  static initializeWebSocketInstance(expressServer, sessionParser) {
+  static initializeWebSocketInstance(
+    expressServer: Server,
+    sessionParser: RequestHandler
+  ) {
     WebSocketManager.#webSocketInstance?.closeServer();
 
     WebSocketManager.#webSocketInstance = new WebSocketInstance(
@@ -43,12 +49,11 @@ export default class WebSocketManager {
     return WebSocketManager.#webSocketInstance;
   }
 
-  /**
-   * @param {number[]} userIds
-   * @param {string[]} ignoreSessionIds
-   * @param {string | number | readonly any[] | ArrayBuffer | SharedArrayBuffer | Uint8Array | Buffer<ArrayBufferLike> | DataView | ArrayBufferView | readonly number[] | { valueOf(): ArrayBuffer; } | { valueOf(): SharedArrayBuffer; } | { valueOf(): Uint8Array; } | { valueOf(): readonly number[]; } | { valueOf(): string; } | { [Symbol.toPrimitive](hint: string): string; }} message
-   */
-  static broadcastMessage(userIds, ignoreSessionIds, message) {
+  static broadcastMessage(
+    userIds: number[],
+    ignoreSessionIds: string[],
+    message: WebSocketMessage
+  ) {
     WebSocketManager.#webSocketInstance?.broadcastMessage(
       userIds,
       ignoreSessionIds,
@@ -56,13 +61,12 @@ export default class WebSocketManager {
     );
   }
 
-  /**
-   * @param {number[]} userIds
-   * @param {string[]} ignoreSessionIds
-   * @param {string} actionType
-   * @param {object} actionContent
-   */
-  static broadcastAction(userIds, ignoreSessionIds, actionType, actionContent) {
+  static broadcastAction(
+    userIds: number[],
+    ignoreSessionIds: string[],
+    actionType: string,
+    actionContent: object
+  ) {
     WebSocketManager.#webSocketInstance?.broadcastMessage(
       userIds,
       ignoreSessionIds,
@@ -78,45 +82,48 @@ export default class WebSocketManager {
 
 export class WebSocketInstance {
   // TODO: Use some sort of database.
-  /** @type {Map<number, Map<string, WebSocket>>}} */
-  #connections = new Map();
-  /** @type {Map<WebSocket, {userId: number, sessionId: string}>} */
-  #websocketToUserSession = new Map();
+  #connections = new Map<number, Map<string, WebSocket>>();
+  #websocketToUserSession = new Map<
+    WebSocket,
+    { userId: number; sessionId: string }
+  >();
 
-  /**
-   * @param {import("http").Server} expressServer
-   * @param {import("express").RequestHandler} sessionParser
-   */
-  constructor(expressServer, sessionParser) {
-    /** @type {WebSocketServer} */
+  declare websocketServer: WebSocketServer;
+  declare sessionParser: RequestHandler;
+
+  constructor(expressServer: Server, sessionParser: RequestHandler) {
     this.websocketServer = new WebSocketServer({
       noServer: true,
       path: "/ws",
     });
     this.sessionParser = sessionParser;
 
-    expressServer.on("upgrade", this.#onUpgrade.bind(this));
+    expressServer.on(
+      "upgrade",
+      this.#onUpgrade.bind(this) as (
+        req: IncomingMessage,
+        socket: Duplex,
+        head: Buffer
+      ) => void
+    );
 
-    this.websocketServer.on("connection", this.#onConnection.bind(this));
+    this.websocketServer.on(
+      "connection",
+      this.#onConnection.bind(this) as (
+        ws: WebSocket,
+        req: IncomingMessage
+      ) => void
+    );
   }
 
-  /**
-   * @param {any} err
-   */
-  #onSocketError(err) {
+  #onSocketError(err: unknown) {
     console.error(err);
   }
 
-  /**
-   * @param {import("express").Request} req
-   * @param {import("stream").Duplex} socket
-   * @param {Buffer} head
-   */
-  #onUpgrade(req, socket, head) {
+  #onUpgrade(req: Request, socket: Duplex, head: Buffer) {
     socket.on("error", this.#onSocketError);
 
-    // @ts-ignore
-    this.sessionParser(req, {}, () => {
+    void this.sessionParser(req, {} as Response, () => {
       if (!isActiveSession(req) || sessionExpired(req)) {
         socket.write("HTTP/1.1 401 Unauthorized\r\n\r\n");
         socket.destroy();
@@ -130,18 +137,14 @@ export class WebSocketInstance {
         socket,
         head,
 
-        (/** @type {WebSocket} */ ws) => {
+        (ws) => {
           this.websocketServer.emit("connection", ws, req);
         }
       );
     });
   }
 
-  /**
-   * @param {WebSocket} ws
-   * @param {import("express").Request} req
-   */
-  #onConnection(ws, req) {
+  #onConnection(ws: WebSocket, req: Request) {
     if (!isActiveSession(req)) {
       ws.close();
       return;
@@ -149,19 +152,23 @@ export class WebSocketInstance {
 
     console.log(
       "WebSocket connection established for user:",
-      req.session.user.username
+      getSessionUser(req).username
     );
 
-    this.#registerUser(req.session.user.id, req.sessionID, ws);
+    this.#registerUser(getSessionUser(req).id, req.sessionID, ws);
 
     ws.on("message", (message) => {
       try {
         if (!isActiveSession(req) || sessionExpired(req)) {
           ws.close();
-          req.session.destroy(() => {});
+          req.session.destroy(() => {
+            // Nothing to do once the session is gone.
+          });
           return;
         }
-        const data = JSON.parse(message.toString());
+        const data = JSON.parse((message as Buffer).toString()) as {
+          type?: unknown;
+        };
         if (data.type === "heartbeat") {
           req.session.touch();
         }
@@ -170,13 +177,12 @@ export class WebSocketInstance {
       }
     });
 
-    ws.on("close", () => this.#onConnectionClosed(ws));
+    ws.on("close", () => {
+      this.#onConnectionClosed(ws);
+    });
   }
 
-  /**
-   * @param {WebSocket} ws
-   */
-  #onConnectionClosed(ws) {
+  #onConnectionClosed(ws: WebSocket) {
     this.#unregisterUser(ws);
   }
 
@@ -184,12 +190,11 @@ export class WebSocketInstance {
     this.websocketServer.close();
   }
 
-  /**
-   * @param {number[]} userIds
-   * @param {string[]} ignoreSessionIds
-   * @param {string | number | readonly any[] | ArrayBuffer | SharedArrayBuffer | Uint8Array | Buffer<ArrayBufferLike> | DataView | ArrayBufferView | readonly number[] | { valueOf(): ArrayBuffer; } | { valueOf(): SharedArrayBuffer; } | { valueOf(): Uint8Array; } | { valueOf(): readonly number[]; } | { valueOf(): string; } | { [Symbol.toPrimitive](hint: string): string; }} message
-   */
-  broadcastMessage(userIds, ignoreSessionIds, message) {
+  broadcastMessage(
+    userIds: number[],
+    ignoreSessionIds: string[],
+    message: WebSocketMessage
+  ) {
     try {
       for (const [userId, userEntry] of this.#connections) {
         if (userIds.length > 0 && !userIds.includes(userId)) {
@@ -207,12 +212,7 @@ export class WebSocketInstance {
     }
   }
 
-  /**
-   * @param {number} userId
-   * @param {string} sessionId
-   * @param {WebSocket} websocket
-   */
-  #registerUser(userId, sessionId, websocket) {
+  #registerUser(userId: number, sessionId: string, websocket: WebSocket) {
     try {
       this.#websocketToUserSession.set(websocket, {
         userId: userId,
@@ -220,7 +220,7 @@ export class WebSocketInstance {
       });
       let userEntry = this.#connections.get(userId);
       if (!userEntry) {
-        userEntry = new Map();
+        userEntry = new Map<string, WebSocket>();
         this.#connections.set(userId, userEntry);
       }
       userEntry.set(sessionId, websocket);
@@ -229,10 +229,7 @@ export class WebSocketInstance {
     }
   }
 
-  /**
-   * @param {WebSocket} ws
-   */
-  #unregisterUser(ws) {
+  #unregisterUser(ws: WebSocket) {
     try {
       const userSession = this.#websocketToUserSession.get(ws);
       if (!userSession) {

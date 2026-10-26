@@ -1,5 +1,3 @@
-// @ts-check
-
 import RawVolumeData from "./raw-volume-data";
 import SparseLabeledVolumeData from "./sparse-labeled-volume-data";
 import PseudoLabeledVolumeData from "./pseudo-labeled-volume-data";
@@ -13,10 +11,7 @@ export class VolumeDataType {
     "PseudoLabeledVolumeData"
   );
 
-  /**
-   * @param {string} name
-   */
-  static mapName(name) {
+  static mapName(name: string) {
     switch (name) {
       case this.RawVolumeData.name:
         return this.RawVolumeData;
@@ -28,20 +23,15 @@ export class VolumeDataType {
     throw new Error("Unknown Volume Data Type");
   }
 
-  /**
-   * @param {string} name
-   */
-  constructor(name) {
-    /** @type {string} */
+  declare name: string;
+
+  constructor(name: string) {
     this.name = name;
   }
 }
 
 export class VolumeDataFactory {
-  /**
-   * @param {VolumeDataType} type
-   */
-  static getClass(type) {
+  static getClass(type: VolumeDataType) {
     switch (type) {
       case VolumeDataType.RawVolumeData:
         return RawVolumeData;

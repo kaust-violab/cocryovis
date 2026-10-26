@@ -1,5 +1,3 @@
-// @ts-check
-
 import DatabaseModel, { withTransaction } from "./database-model";
 import prismaManager from "../tools/prisma-manager";
 import WriteLockManager from "../tools/write-lock-manager";
@@ -7,31 +5,27 @@ import { ApiError } from "../tools/error-handler";
 import RawVolumeDataFile from "./raw-volume-data-file";
 import SparseVolumeDataFile from "./sparse-volume-data-file";
 import PseudoVolumeDataFile from "./pseudo-volume-data-file";
-import { Prisma } from "@prisma/client";
+import type { Prisma, User as UserDB } from "@prisma/client";
 import bcrypt from "bcrypt";
 import { securityConfig } from "../tools/config";
+import type { publicUser } from "@cocryovis/schemas/user-path-schema";
+import type z from "zod";
 
-/**
- * @import { publicUser } from "@cocryovis/schemas/user-path-schema"
- * @import z from "zod"
- * @typedef { import("@prisma/client").User } UserDB
- * @typedef {z.infer<publicUser>} PublicUser
- */
+export type { UserDB };
+export type PublicUser = z.infer<typeof publicUser>;
 
 export default class User extends DatabaseModel {
-  static modelName = "user";
-  static lockManager = new WriteLockManager(this.modelName);
+  static override modelName = "user";
+  static override lockManager = new WriteLockManager(this.modelName);
 
-  static get db() {
+  static override get db() {
     return prismaManager.db.user;
   }
 
-  /**
-   * @param {string} username
-   * @param {string} password
-   * @returns {Promise<UserDB>}
-   */
-  static async authenticate(username, password) {
+  static async authenticate(
+    username: string,
+    password: string
+  ): Promise<UserDB> {
     const user = await User.getByUsername(username);
 
     const match = await bcrypt.compare(password, user.passwordHash);
@@ -41,28 +35,16 @@ export default class User extends DatabaseModel {
     return user;
   }
 
-  /**
-   * @param {number} id
-   * @returns {Promise<UserDB>}
-   */
-  static async getById(id) {
-    return await super.getById(id);
+  static override async getById(id: number): Promise<UserDB> {
+    return (await super.getById(id)) as UserDB;
   }
 
-  /**
-   * @param {number[]} ids
-   * @returns {Promise<UserDB[]>}
-   */
-  static async getByIds(ids) {
-    return await super.getByIds(ids);
+  static override async getByIds(ids: number[]): Promise<UserDB[]> {
+    return (await super.getByIds(ids)) as UserDB[];
   }
 
-  /**
-   * @param {string} username
-   * @returns {Promise<UserDB>}
-   */
-  static async getByUsername(username) {
-    let user = await prismaManager.db.user.findUnique({
+  static async getByUsername(username: string): Promise<UserDB> {
+    const user = await prismaManager.db.user.findUnique({
       where: { username: username },
     });
     if (!user) {
@@ -80,25 +62,21 @@ export default class User extends DatabaseModel {
     });
   }
 
-  /**
-   * @param {string} password
-   * @returns {Promise<{ salt: string, hash: string}>}
-   */
-  static async encryptPassword(password) {
+  static async encryptPassword(
+    password: string
+  ): Promise<{ salt: string; hash: string }> {
     const bcryptCost = securityConfig.bcryptCost;
     const passwordSalt = await bcrypt.genSalt(bcryptCost);
     const passwordHash = await bcrypt.hash(password, passwordSalt);
     return { salt: passwordSalt, hash: passwordHash };
   }
 
-  /**
-   * @param {string} username
-   * @param {string} password
-   * @param {string} name
-   * @param {string} email
-   * @returns {Promise<UserDB>}
-   */
-  static async create(username, password, name, email) {
+  static override async create(
+    username: string,
+    password: string,
+    name: string,
+    email: string
+  ): Promise<UserDB> {
     if (!username || username.length === 0) {
       throw new ApiError(400, "Missing username.");
     }
@@ -118,13 +96,14 @@ export default class User extends DatabaseModel {
     });
   }
 
-  /**
-   * @param {number} id
-   * @param {import("@prisma/client").Prisma.UserUpdateInput & {password?: string}} changes
-   * @returns {Promise<UserDB>}
-   */
-  static async update(id, changes) {
+  static override async update(
+    id: number,
+    changes: Prisma.UserUpdateInput & { password?: string }
+  ): Promise<UserDB> {
     if (Object.hasOwn(changes, "password")) {
+      if (changes.password === undefined) {
+        throw new ApiError(400, "Missing password.");
+      }
       const { salt, hash } = await User.encryptPassword(changes.password);
       changes.passwordSalt = salt;
       changes.passwordHash = hash;
@@ -137,11 +116,7 @@ export default class User extends DatabaseModel {
     });
   }
 
-  /**
-   * @param {number} id
-   * @param {Prisma.TransactionClient | undefined} [client]
-   */
-  static async del(id, client) {
+  static override async del(id: number, client?: Prisma.TransactionClient) {
     return await withTransaction(client, async (tx) => {
       const projectIds = await tx.project.findMany({
         where: { ownerId: id },
@@ -181,11 +156,7 @@ export default class User extends DatabaseModel {
     });
   }
 
-  /**
-   * @param {UserDB} user
-   * @returns {PublicUser}
-   */
-  static toPublic(user) {
+  static toPublic(user: UserDB): PublicUser {
     return {
       id: user.id,
       username: user.username,

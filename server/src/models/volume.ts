@@ -1,5 +1,3 @@
-// @ts-check
-
 import DatabaseModel, { withTransaction } from "./database-model";
 import prismaManager from "../tools/prisma-manager";
 import PseudoLabeledVolumeData from "./pseudo-labeled-volume-data";
@@ -12,36 +10,33 @@ import { ApiError, MissingResourceError } from "../tools/error-handler";
 import RawVolumeDataFile from "./raw-volume-data-file";
 import SparseVolumeDataFile from "./sparse-volume-data-file";
 import PseudoVolumeDataFile from "./pseudo-volume-data-file";
-import { Prisma } from "@prisma/client";
+import type { Prisma } from "@prisma/client";
 import ResultDataFile from "./result-data-file";
+import type z from "zod";
+import type { volumeQuerySchema } from "@cocryovis/schemas/volume-path-schema";
+import type { SparseVolumeDataWithFileDB } from "./volume-data";
 
-/**
- * @import z from "zod"
- * @import { volumeQuerySchema } from "@cocryovis/schemas/volume-path-schema"
- * @typedef { import("@prisma/client").Volume } VolumeDB
- * @typedef { import("@prisma/client").SparseLabelVolumeData } SparseLabelVolumeDataDB
- * @typedef { import("@prisma/client").PseudoLabelVolumeData } PseudoLabelVolumeDataDB
- */
+export type {
+  Volume as VolumeDB,
+  SparseLabelVolumeData as SparseLabelVolumeDataDB,
+  PseudoLabelVolumeData as PseudoLabelVolumeDataDB,
+} from "@prisma/client";
 
 export default class Volume extends DatabaseModel {
-  static modelName = "volume";
-  static lockManager = new WriteLockManager(this.modelName);
+  static override modelName = "volume";
+  static override lockManager = new WriteLockManager(this.modelName);
   static annotationsTempDirectory = path.join(
     appConfig.tempPath,
     "annotations"
   );
 
-  static get db() {
+  static override get db() {
     return prismaManager.db.volume;
   }
 
-  /**
-   * @param {number} id
-   * @param {z.infer<volumeQuerySchema>} options
-   */
-  static async getById(
-    id,
-    options = {
+  static override async getById(
+    id: number,
+    options: z.infer<typeof volumeQuerySchema> = {
       rawData: false,
       sparseVolumes: false,
       pseudoVolumes: false,
@@ -65,10 +60,7 @@ export default class Volume extends DatabaseModel {
     return entry;
   }
 
-  /**
-   * @param {number} id
-   */
-  static async getByIdWithFileDeep(id) {
+  static async getByIdWithFileDeep(id: number) {
     const entry = await this.db.findUnique({
       where: { id: id },
       include: {
@@ -83,13 +75,9 @@ export default class Volume extends DatabaseModel {
     return entry;
   }
 
-  /**
-   * @param {number} projectId
-   * @param {z.infer<volumeQuerySchema>} options
-   */
   static async getVolumesFromProject(
-    projectId,
-    options = {
+    projectId: number,
+    options: z.infer<typeof volumeQuerySchema> = {
       rawData: false,
       sparseVolumes: false,
       pseudoVolumes: false,
@@ -113,10 +101,7 @@ export default class Volume extends DatabaseModel {
     });
   }
 
-  /**
-   * @param {number} projectId
-   */
-  static async getVolumesFromProjectDeep(projectId) {
+  static async getVolumesFromProjectDeep(projectId: number) {
     return await this.db.findMany({
       where: {
         project: {
@@ -136,26 +121,19 @@ export default class Volume extends DatabaseModel {
     });
   }
 
-  /**
-   * @param {number[]} ids
-   * @returns {Promise<VolumeDB[]>}
-   */
-  static async getByIds(ids) {
-    return await super.getByIds(ids);
+  static override async getByIds(ids: number[]): Promise<VolumeDB[]> {
+    return (await super.getByIds(ids)) as VolumeDB[];
   }
 
-  /**
-   * @param {number[]} ids
-   * @param {object} options
-   * @param {boolean} [options.rawData]
-   * @param {boolean} [options.sparseVolumes]
-   * @param {boolean} [options.pseudoVolumes]
-   */
   static async getMultipleByIdDeep(
-    ids,
-    { rawData = false, sparseVolumes = false, pseudoVolumes = false }
+    ids: number[],
+    {
+      rawData = false,
+      sparseVolumes = false,
+      pseudoVolumes = false,
+    }: { rawData?: boolean; sparseVolumes?: boolean; pseudoVolumes?: boolean }
   ) {
-    let entry = await this.db.findMany({
+    const entry = await this.db.findMany({
       where: { id: { in: ids } },
       include: {
         rawData: rawData,
@@ -166,10 +144,7 @@ export default class Volume extends DatabaseModel {
     return entry;
   }
 
-  /**
-   * @param {number[]} ids
-   */
-  static async getMultipleByIdWithFileDeep(ids) {
+  static async getMultipleByIdWithFileDeep(ids: number[]) {
     return await this.db.findMany({
       where: { id: { in: ids } },
       include: {
@@ -179,14 +154,12 @@ export default class Volume extends DatabaseModel {
     });
   }
 
-  /**
-   * @param {string} name
-   * @param {string} description
-   * @param {number} creatorId
-   * @param {number} projectId
-   * @returns {Promise<VolumeDB>}
-   */
-  static async create(name, description, creatorId, projectId) {
+  static override async create(
+    name: string,
+    description: string,
+    creatorId: number,
+    projectId: number
+  ): Promise<VolumeDB> {
     return Project.withWriteLock(projectId, [this.modelName], () => {
       return this.db.create({
         data: {
@@ -199,21 +172,17 @@ export default class Volume extends DatabaseModel {
     });
   }
 
-  /**
-   * @param {number} id
-   * @param {import("@prisma/client").Prisma.VolumeUpdateInput} changes
-   * @returns {Promise<VolumeDB>}
-   */
-  static async update(id, changes) {
-    return await super.update(id, changes);
+  static override async update(
+    id: number,
+    changes: Prisma.VolumeUpdateInput
+  ): Promise<VolumeDB> {
+    return (await super.update(id, changes)) as VolumeDB;
   }
 
-  /**
-   * @param {number} volumeId
-   * @param {Prisma.TransactionClient | undefined} [client]
-   * @returns { Promise<VolumeDB> }
-   */
-  static async del(volumeId, client) {
+  static override async del(
+    volumeId: number,
+    client?: Prisma.TransactionClient
+  ): Promise<VolumeDB> {
     return await this.withWriteLock(volumeId, null, () => {
       return withTransaction(client, async (tx) => {
         const deletedVolume = await tx.volume.delete({
@@ -228,21 +197,13 @@ export default class Volume extends DatabaseModel {
     });
   }
 
-  /**
-   * @param {string} folderPath
-   * @param {number} creatorId
-   * @param {number} volumeId
-   * @param {import("./volume-data").SparseVolumeDataWithFileDB[] } originalLabels
-   * @param {Prisma.TransactionClient | undefined} [client]
-   * @returns {Promise<PseudoLabelVolumeDataDB[]>}
-   */
   static async addPseudoLabelsFromFolder(
-    folderPath,
-    creatorId,
-    volumeId,
-    originalLabels,
-    client
-  ) {
+    folderPath: string,
+    creatorId: number,
+    volumeId: number,
+    originalLabels: SparseVolumeDataWithFileDB[],
+    client?: Prisma.TransactionClient
+  ): Promise<PseudoLabelVolumeDataDB[] | undefined> {
     return await withTransaction(client, async (tx) => {
       const volume = await tx.volume.findUnique({
         where: { id: volumeId },
@@ -251,6 +212,9 @@ export default class Volume extends DatabaseModel {
           pseudoVolumes: true,
         },
       });
+      if (!volume) {
+        throw MissingResourceError.fromId(volumeId, this.modelName);
+      }
 
       if (
         volume.sparseVolumes.length + volume.pseudoVolumes.length >
@@ -262,10 +226,10 @@ export default class Volume extends DatabaseModel {
         );
       }
 
-      const newFolders = [];
+      const newFolders: string[] = [];
       const files = await fsPromises.readdir(folderPath);
 
-      const newPseudoLabels = [];
+      const newPseudoLabels: PseudoLabelVolumeDataDB[] = [];
       try {
         for (let i = 0; i < files.length; i++) {
           const filePath = path.join(folderPath, files[i]);
@@ -278,7 +242,9 @@ export default class Volume extends DatabaseModel {
               originalLabels[i],
               tx
             );
-          newFolders.push(pseudoLabelVolumeData.dataFile.path);
+          if (pseudoLabelVolumeData.dataFile.path) {
+            newFolders.push(pseudoLabelVolumeData.dataFile.path);
+          }
           newPseudoLabels.push(pseudoLabelVolumeData);
         }
 
@@ -286,7 +252,7 @@ export default class Volume extends DatabaseModel {
       } catch {
         newFolders.forEach((folder) => {
           try {
-            fsPromises.rm(folder, {
+            void fsPromises.rm(folder, {
               recursive: true,
               force: true,
             });

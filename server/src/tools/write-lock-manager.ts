@@ -1,12 +1,8 @@
-// @ts-check
-
 export class LockBlockedError extends Error {
-  /**
-   * @param {string} message
-   * @param {number} instanceId
-   * @param {string} instanceName
-   */
-  constructor(message, instanceId, instanceName) {
+  declare instanceId: number;
+  declare instanceName: string;
+
+  constructor(message: string, instanceId: number, instanceName: string) {
     super(message);
     this.name = "LockBlockedError";
     this.instanceId = instanceId;
@@ -15,17 +11,16 @@ export class LockBlockedError extends Error {
 }
 
 export class WriteLock {
-  /** @type {number} */ #instanceId;
-  /** @type {string[]?} */ #connections = null;
-  /** @type {WriteLockManager} */ #lockManager;
-  /** @type {boolean} */ #active = false;
+  #instanceId: number;
+  #connections: string[] | null = null;
+  #lockManager: WriteLockManager;
+  #active = false;
 
-  /**
-   * @param {number} instanceId
-   * @param {string[]?} connections
-   * @param {WriteLockManager} lockManager
-   */
-  constructor(instanceId, connections, lockManager) {
+  constructor(
+    instanceId: number,
+    connections: string[] | null,
+    lockManager: WriteLockManager
+  ) {
     this.#instanceId = instanceId;
     this.#connections = connections === null ? null : Array.from(connections);
     this.#lockManager = lockManager;
@@ -43,10 +38,7 @@ export class WriteLock {
     return this.#lockManager;
   }
 
-  /**
-   * @returns {WriteLock | null}
-   */
-  requestLock() {
+  requestLock(): this | null {
     if (this.#active) {
       console.error("Lock already active");
       return null;
@@ -55,9 +47,9 @@ export class WriteLock {
     try {
       if (this.isLockBlocked()) {
         throw new LockBlockedError(
-          `Instance of ${this.#lockManager.instanceName} with id ${
+          `Instance of ${this.#lockManager.instanceName} with id ${String(
             this.#instanceId
-          } is currently locked due to it being a part of ongoing operation.`,
+          )} is currently locked due to it being a part of ongoing operation.`,
           this.#instanceId,
           this.#lockManager.instanceName
         );
@@ -65,7 +57,7 @@ export class WriteLock {
 
       let instanceLocks = this.#lockManager.locks.get(this.#instanceId);
       if (instanceLocks === undefined) {
-        instanceLocks = new Set();
+        instanceLocks = new Set<WriteLock>();
         this.#lockManager.locks.set(this.#instanceId, instanceLocks);
       }
       instanceLocks.add(this);
@@ -75,7 +67,7 @@ export class WriteLock {
           this.#instanceId
         );
         if (instanceConnectionLocks === undefined) {
-          instanceConnectionLocks = new Map();
+          instanceConnectionLocks = new Map<string, Set<WriteLock>>();
           this.#lockManager.connectionLocks.set(
             this.#instanceId,
             instanceConnectionLocks
@@ -84,7 +76,7 @@ export class WriteLock {
         for (const lockConnection of this.#connections) {
           let connectionLocks = instanceConnectionLocks.get(lockConnection);
           if (connectionLocks === undefined) {
-            connectionLocks = new Set();
+            connectionLocks = new Set<WriteLock>();
             instanceConnectionLocks.set(lockConnection, connectionLocks);
           }
           connectionLocks.add(this);
@@ -132,32 +124,23 @@ export class WriteLock {
     }
   }
 
-  /**
-   * @returns {boolean}
-   */
-  isLockBlocked() {
+  isLockBlocked(): boolean {
     return this.#lockManager.isLockBlocked(this.instanceId, this.connections);
   }
 }
 
 export class WriteMultiLock {
-  /** @type {WriteLock[]} */ #writeLocks;
+  #writeLocks: WriteLock[];
 
-  /**
-   * @param {WriteLock[]} writeLocks
-   */
-  constructor(writeLocks) {
+  constructor(writeLocks: WriteLock[]) {
     this.#writeLocks = writeLocks;
   }
 
-  /**
-   * @returns {WriteMultiLock}
-   */
-  requestLocks() {
+  requestLocks(): this {
     this.#writeLocks.forEach((writeLock) => {
       if (writeLock.isLockBlocked()) {
         throw new LockBlockedError(
-          `Instance of ${writeLock.lockManager.instanceName} with id ${writeLock.instanceId} is currently locked due to it being a part of ongoing operation.`,
+          `Instance of ${writeLock.lockManager.instanceName} with id ${String(writeLock.instanceId)} is currently locked due to it being a part of ongoing operation.`,
           writeLock.instanceId,
           writeLock.lockManager.instanceName
         );
@@ -175,33 +158,25 @@ export class WriteMultiLock {
     });
   }
 
-  /**
-   * @template T
-   * @param {WriteMultiLock} multilock
-   * @param {() => Promise<T>} operation
-   */
-  static withWriteMultiLock(multilock, operation) {
+  static withWriteMultiLock<T>(
+    multilock: WriteMultiLock,
+    operation: () => Promise<T>
+  ) {
     multilock.requestLocks();
 
-    operation().finally(() => {
+    void operation().finally(() => {
       multilock.removeLocks();
     });
   }
 }
 
 export default class WriteLockManager {
-  /** @type {Map<number, Set<WriteLock>>} */ #locks = new Map();
-  /**
-   * @type {Map<number, Map<string, Set<WriteLock>>>}
-   */
-  #connectionLocks = new Map();
+  #locks = new Map<number, Set<WriteLock>>();
+  #connectionLocks = new Map<number, Map<string, Set<WriteLock>>>();
 
-  /** @type {string} */ #instanceName;
+  #instanceName: string;
 
-  /**
-   * @param {string} instanceName
-   */
-  constructor(instanceName) {
+  constructor(instanceName: string) {
     this.#instanceName = instanceName;
 
     Object.preventExtensions(this);
@@ -217,21 +192,12 @@ export default class WriteLockManager {
     return this.#instanceName;
   }
 
-  /**
-   * @param {number} instanceId
-   * @returns {boolean}
-   */
-  isLocked(instanceId) {
+  isLocked(instanceId: number): boolean {
     const instanceLocks = this.#locks.get(instanceId);
     return instanceLocks !== undefined && instanceLocks.size > 0;
   }
 
-  /**
-   * @param {number} instanceId
-   * @param {string} connection
-   * @returns {boolean}
-   */
-  hasLockedConnection(instanceId, connection) {
+  hasLockedConnection(instanceId: number, connection: string): boolean {
     const instanceConnectionLocks = this.#connectionLocks.get(instanceId);
     if (instanceConnectionLocks === undefined) return false;
 
@@ -241,12 +207,10 @@ export default class WriteLockManager {
     return connectionLocks.size > 0;
   }
 
-  /**
-   * @param {number} instanceId
-   * @param {string[]?} lockConnections
-   * @returns {boolean}
-   */
-  isLockBlocked(instanceId, lockConnections = null) {
+  isLockBlocked(
+    instanceId: number,
+    lockConnections: string[] | null = null
+  ): boolean {
     if (lockConnections == null) {
       return this.isLocked(instanceId);
     } else {
@@ -256,21 +220,17 @@ export default class WriteLockManager {
     }
   }
 
-  /**
-   * @param {number} instanceId
-   * @param {string[]?} connections
-   * @returns {WriteLock}
-   */
-  requestLock(instanceId, connections = null) {
+  requestLock(
+    instanceId: number,
+    connections: string[] | null = null
+  ): WriteLock | null {
     return new WriteLock(instanceId, connections, this).requestLock();
   }
 
-  /**
-   * @param {number} instanceId
-   * @param {string[]?} connections
-   * @returns {WriteLock}
-   */
-  generateLockInstance(instanceId, connections = null) {
+  generateLockInstance(
+    instanceId: number,
+    connections: string[] | null = null
+  ): WriteLock {
     return new WriteLock(instanceId, connections, this);
   }
 }

@@ -2,13 +2,18 @@ import fileSystem from "fs";
 import path from "path";
 import fsPromises from "node:fs/promises";
 import Utils from "./utils";
-import TaskQueue, { Deferred, Task } from "./task-queue";
+import TaskQueue, {
+  Deferred,
+  type QueuedTaskHistory,
+  Task,
+} from "./task-queue";
 import Volume from "../models/volume";
 import appConfig from "./config";
 import type LogFile from "./log-manager";
 import RawVolumeData from "../models/raw-volume-data";
 import SparseLabeledVolumeData from "../models/sparse-labeled-volume-data";
 import PseudoLabeledVolumeData from "../models/pseudo-labeled-volume-data";
+import type { PseudoLabelVolumeDataDB } from "../models/volume";
 import { WriteMultiLock } from "./write-lock-manager";
 import { ApiError } from "./error-handler";
 import WebSocketManager, { ActionTypes } from "./websocket-manager";
@@ -18,7 +23,21 @@ import type { volumeSizeSchema } from "@cocryovis/schemas/componentSchemas/volum
 import moduleConfigLoader from "./module-config-loader";
 import { ilastikConfigSchema, IlastikModule } from "../modules/ilastik-module";
 
-class LabelGenerationTask extends Task<PseudoLabeledVolumeData[]> {
+type VolumeWithFileDeep = Awaited<
+  ReturnType<typeof Volume.getByIdWithFileDeep>
+>;
+
+/** A volume that passed IlastikHandler.checkVolumeProperties. */
+type CheckedVolume = Omit<VolumeWithFileDeep, "rawData" | "sparseVolumes"> & {
+  rawData: RawVolumeDataWithFileDB & {
+    dataFile: { rawFilePath: string };
+  };
+  sparseVolumes: (SparseVolumeDataWithFileDB & {
+    dataFile: { rawFilePath: string };
+  })[];
+};
+
+class LabelGenerationTask extends Task<PseudoLabelVolumeDataDB[] | undefined> {
   private ilastikHandler: IlastikHandler;
   private volumeId: number;
   private outputPath: string;
@@ -43,7 +62,7 @@ class LabelGenerationTask extends Task<PseudoLabeledVolumeData[]> {
     };
   }
 
-  override async execute(): Promise<PseudoLabeledVolumeData[]> {
+  override async execute(): Promise<PseudoLabelVolumeDataDB[] | undefined> {
     return await this.ilastikHandler.generateLabels(
       this.volumeId,
       this.userId,
@@ -77,7 +96,7 @@ export default class IlastikHandler {
     volumeId: number,
     userId: number,
     outputPath: string | null = null
-  ): Promise<TaskHistoryDB> {
+  ): Promise<QueuedTaskHistory> {
     if (this.taskQueue.size >= this.config.ilastikQueueSize) {
       throw new ApiError(
         400,
@@ -101,7 +120,7 @@ export default class IlastikHandler {
       ]),
     ]);
 
-    const defferedHistory = new Deferred<TaskHistoryDB>();
+    const defferedHistory = new Deferred<QueuedTaskHistory>();
 
     WriteMultiLock.withWriteMultiLock(multiLock, async () => {
       try {
@@ -132,7 +151,7 @@ export default class IlastikHandler {
     rawDataPath: string,
     modelPath: string,
     labelsOutputPath: string,
-    logFile: LogFile
+    logFile?: LogFile
   ): Promise<string> {
     return await this.ilastikModule.runInference(
       rawDataPath,
@@ -146,7 +165,7 @@ export default class IlastikHandler {
     rawDataPath: string,
     sparseLabelPath: string,
     outputPath: string,
-    logFile: LogFile
+    logFile?: LogFile
   ): Promise<string> {
     return await this.ilastikModule.createProject(
       rawDataPath,
@@ -161,7 +180,7 @@ export default class IlastikHandler {
     userId: number,
     outputPath: string,
     logFile?: LogFile
-  ): Promise<PseudoLabeledVolumeData[]> {
+  ): Promise<PseudoLabelVolumeDataDB[] | undefined> {
     try {
       const volume = await Volume.getByIdWithFileDeep(volumeId);
 
@@ -253,11 +272,11 @@ export default class IlastikHandler {
   }
 
   private async convertDataToH5(
-    rawData: RawVolumeDataWithFileDB,
-    sparseLabelsStack: SparseVolumeDataWithFileDB[],
+    rawData: CheckedVolume["rawData"],
+    sparseLabelsStack: CheckedVolume["sparseVolumes"],
     rawOutputPath: string,
     labelsOutputPath: string,
-    logFile: LogFile | null = null
+    logFile?: LogFile
   ) {
     if (fileSystem.existsSync(rawOutputPath)) {
       await fsPromises.rm(rawOutputPath, {
@@ -307,7 +326,9 @@ export default class IlastikHandler {
     }
   }
 
-  private static checkVolumeProperties(volume: FullVolumeWithFileDB) {
+  private static checkVolumeProperties(
+    volume: VolumeWithFileDeep
+  ): asserts volume is CheckedVolume {
     if (volume.sparseVolumes.length < 2) {
       throw new ApiError(
         400,

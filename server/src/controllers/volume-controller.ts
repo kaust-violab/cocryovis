@@ -1,5 +1,4 @@
-// @ts-check
-
+import { type Request, type Response } from "express";
 import Volume from "../models/volume";
 import { idProject } from "@cocryovis/schemas/componentSchemas/project-schema";
 import {
@@ -11,18 +10,10 @@ import {
   createVolumeReq,
   volumeQuerySchema,
 } from "@cocryovis/schemas/volume-path-schema";
-
-/**
- * @typedef { import("express").Request } Request
- * @typedef { import("express").Response } Response
- */
+import { getSessionUser } from "../middleware/restrict";
 
 export default class VolumeController {
-  /**
-   * @param {Request} req
-   * @param {Response} res
-   */
-  static getVolume = async (req, res) => {
+  static getVolume = async (req: Request, res: Response) => {
     const { query, params } = validateSchema(req, {
       querySchema: volumeQuerySchema,
       paramsSchema: idVolume,
@@ -32,11 +23,7 @@ export default class VolumeController {
     res.status(200).json(volume);
   };
 
-  /**
-   * @param {Request} req
-   * @param {Response} res
-   */
-  // static getVolumesFromProject = async (req, res) => {
+  // static getVolumesFromProject = async (req: Request, res: Response) => {
   //     const options = VolumeController.#parseOptionQuery(req);
   //     const volumes = await Volume.getVolumesFromProject(
   //         Number(req.params.idProject),
@@ -46,11 +33,7 @@ export default class VolumeController {
   //     res.status(200).json(volumes);
   // }
 
-  /**
-   * @param {Request} req
-   * @param {Response} res
-   */
-  static getVolumesFromProjectDeep = async (req, res) => {
+  static getVolumesFromProjectDeep = async (req: Request, res: Response) => {
     const { params } = validateSchema(req, { paramsSchema: idProject });
 
     const volumes = await Volume.getVolumesFromProjectDeep(params.idProject);
@@ -58,11 +41,7 @@ export default class VolumeController {
     res.status(200).json(volumes);
   };
 
-  /**
-   * @param {Request} req
-   * @param {Response} res
-   */
-  static createVolume = async (req, res) => {
+  static createVolume = async (req: Request, res: Response) => {
     const { body, params } = validateSchema(req, {
       bodySchema: createVolumeReq,
       paramsSchema: idProject,
@@ -71,31 +50,23 @@ export default class VolumeController {
     const volume = await Volume.create(
       body.name,
       body.description,
-      req.session.user.id,
+      getSessionUser(req).id,
       params.idProject
     );
 
     res.status(201).json(volume);
   };
 
-  /**
-   * @param {Request} req
-   * @param {Response} res
-   */
-  // static cloneVolume = async (req, res) => {
+  // static cloneVolume = async (req: Request, res: Response) => {
   //     const volume = await Volume.clone(
   //         Number(req.params.idVolume),
-  //         req.session.user.id,
+  //         getSessionUser(req).id,
   //         Number(req.params.idProject)
   //     );
   //     res.status(201).json(volume);
   // }
 
-  /**
-   * @param {Request} req
-   * @param {Response} res
-   */
-  static deleteVolume = async (req, res) => {
+  static deleteVolume = async (req: Request, res: Response) => {
     const { params } = validateSchema(req, {
       paramsSchema: idVolume,
     });
@@ -105,11 +76,7 @@ export default class VolumeController {
     res.sendStatus(204);
   };
 
-  /**
-   * @param {Request} req
-   * @param {Response} res
-   */
-  static update = async (req, res) => {
+  static update = async (req: Request, res: Response) => {
     const { params, body } = validateSchema(req, {
       paramsSchema: idVolume,
       bodySchema: volumeUpdateSchema,

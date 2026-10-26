@@ -1,5 +1,4 @@
-// @ts-check
-
+import { type Request, type Response } from "express";
 import Result from "../models/result";
 import { ApiError } from "../tools/error-handler";
 import { ZipArchive } from "archiver";
@@ -11,20 +10,12 @@ import { idVolume } from "@cocryovis/schemas/componentSchemas/volume-schema";
 import ResultVolume from "../models/result-volume";
 import ResultDataFile from "../models/result-data-file";
 import Volume from "../models/volume";
-
-/**
- * @import { createFromFilesSchema } from "@cocryovis/schemas/result-path-schema"
- * @import z from "zod"
- * @typedef { import("express").Request } Request
- * @typedef { import("express").Response } Response
- */
+import type { createFromFilesSchema } from "@cocryovis/schemas/result-path-schema";
+import type z from "zod";
+import { getSessionUser } from "../middleware/restrict";
 
 export default class ResultController {
-  /**
-   * @param {Request} req
-   * @param {Response} res
-   */
-  static getById = async (req, res) => {
+  static getById = async (req: Request, res: Response) => {
     const { params } = validateSchema(req, { paramsSchema: idResult });
 
     const result = await Result.getById(params.idResult);
@@ -32,11 +23,7 @@ export default class ResultController {
     res.json(result);
   };
 
-  /**
-   * @param {Request} req
-   * @param {Response} res
-   */
-  static getDetails = async (req, res) => {
+  static getDetails = async (req: Request, res: Response) => {
     const result = await Result.getByIdDeep(Number(req.params.idResult), {
       checkpoint: true,
       resultVolumes: true,
@@ -45,11 +32,7 @@ export default class ResultController {
     res.json(result);
   };
 
-  /**
-   * @param {Request} req
-   * @param {Response} res
-   */
-  static getFromVolume = async (req, res) => {
+  static getFromVolume = async (req: Request, res: Response) => {
     const { params } = validateSchema(req, { paramsSchema: idVolume });
 
     const result = await Result.getFromVolume(params.idVolume, {
@@ -59,11 +42,7 @@ export default class ResultController {
     res.json(result);
   };
 
-  /**
-   * @param {Request} req
-   * @param {Response} res
-   */
-  static delete = async (req, res) => {
+  static delete = async (req: Request, res: Response) => {
     const { params } = validateSchema(req, {
       paramsSchema: idResult,
     });
@@ -73,11 +52,7 @@ export default class ResultController {
     res.sendStatus(204);
   };
 
-  /**
-   * @param {Request} req
-   * @param {Response} res
-   */
-  static getResultData = async (req, res) => {
+  static getResultData = async (req: Request, res: Response) => {
     const { params } = validateSchema(req, { paramsSchema: idResult });
 
     const result = await Result.getByIdDeep(params.idResult, {
@@ -97,16 +72,19 @@ export default class ResultController {
       zlib: { level: appConfig.compressionLevel },
     });
 
-    res.attachment(`Result_${result.id}.zip`);
+    res.attachment(`Result_${result.id.toString()}.zip`);
     archive.pipe(res);
 
     const fileReferences = result.resultVolumes;
     fileReferences.sort((a, b) => a.index - b.index);
 
     const settings = [];
-    const rawFileNames = [];
+    const rawFileNames: string[] = [];
     for (const reference of fileReferences) {
       const dataFile = await ResultDataFile.getById(reference.dataFileId);
+      if (!dataFile.rawFilePath) {
+        throw new ApiError(404, "Result volume is missing its raw file.");
+      }
 
       const settingsReference = ResultVolume.toSettingSchema(
         {
@@ -127,17 +105,13 @@ export default class ResultController {
       result.rawVolumeChannel
     );
 
-    archive.finalize();
+    void archive.finalize();
   };
 
-  /**
-   * @param {Request} req
-   * @param {Response} res
-   */
-  static createFromFiles = async (req, res) => {
+  static createFromFiles = async (req: Request, res: Response) => {
     const { params } = validateSchema(req, { paramsSchema: idVolume });
 
-    if (!req.files || !req.files.files) {
+    if (!req.files?.files) {
       throw new ApiError(400, "No file uploaded");
     }
 
@@ -145,11 +119,12 @@ export default class ResultController {
     if (!Array.isArray(files)) {
       files = [files];
     }
-    /** @type {z.infer<typeof createFromFilesSchema> }    */
-    const data = JSON.parse(req.body.data);
+    const data = JSON.parse((req.body as { data: string }).data) as z.infer<
+      typeof createFromFilesSchema
+    >;
 
     const result = await Result.createFromFiles(
-      req.session.user.id,
+      getSessionUser(req).id,
       data.idCheckpoint,
       params.idVolume,
       data.volumeDescriptors,

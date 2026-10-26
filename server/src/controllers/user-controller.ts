@@ -1,5 +1,3 @@
-// @ts-check
-
 import User from "../models/user";
 import { ApiError } from "../tools/error-handler";
 import TaskHistory from "../models/task-history";
@@ -12,20 +10,12 @@ import {
   statusQuery,
   updateUserSchema,
 } from "@cocryovis/schemas/user-path-schema";
-import GPUResourcesManager from "../tools/gpu-resources-manager";
-
-/**
- * @import GPUTaskHandler from "../tools/gpu-task-handler"
- * @typedef { import("express").Request } Request
- * @typedef { import("express").Response } Response
- */
+import type GPUResourcesManager from "../tools/gpu-resources-manager";
+import { type Request, type Response } from "express";
+import { getSessionUser } from "../middleware/restrict";
 
 export default class UserController {
-  /**
-   * @param {Request} req
-   * @param {Response} res
-   */
-  static register = async (req, res) => {
+  static register = async (req: Request, res: Response) => {
     const { body } = validateSchema(req, { bodySchema: registerSchema });
 
     const user = await User.create(
@@ -44,11 +34,7 @@ export default class UserController {
     res.status(201).json(userData);
   };
 
-  /**
-   * @param {Request} req
-   * @param {Response} res
-   */
-  static login = async (req, res) => {
+  static login = async (req: Request, res: Response) => {
     const { body } = validateSchema(req, { bodySchema: loginSchemaReq });
 
     try {
@@ -67,40 +53,39 @@ export default class UserController {
     }
   };
 
-  static async #regenerateSession(req) {
-    return new Promise((resolve, reject) => {
-      req.session.regenerate((err) => {
-        if (err) return reject(err);
+  static async #regenerateSession(req: Request): Promise<void> {
+    return new Promise<void>((resolve, reject) => {
+      req.session.regenerate((err?: Error) => {
+        if (err) {
+          reject(err);
+          return;
+        }
         resolve();
       });
     });
   }
 
-  static async #saveSession(req) {
-    return new Promise((resolve, reject) => {
-      req.session.save((err) => {
-        if (err) return reject(err);
+  static async #saveSession(req: Request): Promise<void> {
+    return new Promise<void>((resolve, reject) => {
+      req.session.save((err?: Error) => {
+        if (err) {
+          reject(err);
+          return;
+        }
         resolve();
       });
     });
   }
 
-  /**
-   * @param {Request} req
-   * @param {Response} res
-   */
-  static logout = (req, res) => {
+  static logout = (req: Request, res: Response) => {
     req.session.destroy(function () {
       res.clearCookie(appConfig.cookieName);
       res.sendStatus(204);
     });
   };
 
-  /**
-   * @param {Request} req
-   * @param {Response} res
-   */
-  static getLoggedUserData = async (req, res) => {
+  // eslint-disable-next-line @typescript-eslint/require-await -- keep thrown errors as promise rejections
+  static getLoggedUserData = async (req: Request, res: Response) => {
     try {
       if (req.session != null) {
         res.json(req.session.user);
@@ -112,27 +97,22 @@ export default class UserController {
     }
   };
 
-  /**
-   * @param {Request} req
-   * @param {Response} res
-   */
-  static getAllUsers = async (req, res) => {
+  static getAllUsers = async (_req: Request, res: Response) => {
     const users = await User.getAllUsers();
 
     res.json(users);
   };
 
-  /**
-   * @param {GPUResourcesManager} gpuResourcesManager
-   * @param {Request} req
-   * @param {Response} res
-   */
-  static getStatus = async (gpuResourcesManager, req, res) => {
+  static getStatus = async (
+    gpuResourcesManager: GPUResourcesManager,
+    req: Request,
+    res: Response
+  ) => {
     const { query } = validateSchema(req, {
       querySchema: statusQuery,
     });
     const taskHistory = await TaskHistory.getFromUser(
-      req.session.user.id,
+      getSessionUser(req).id,
       query.pageNumber,
       query.pageSize
     );
@@ -151,12 +131,12 @@ export default class UserController {
     });
   };
 
-  /**
-   * @param {GPUResourcesManager} gpuResourcesManager
-   * @param {Request} req
-   * @param {Response} res
-   */
-  static getGPUStatus = async (gpuResourcesManager, req, res) => {
+  // eslint-disable-next-line @typescript-eslint/require-await -- keep thrown errors as promise rejections
+  static getGPUStatus = async (
+    gpuResourcesManager: GPUResourcesManager,
+    _req: Request,
+    res: Response
+  ) => {
     const gpuStatus = {
       totalGpus: gpuResourcesManager.totalGPUs,
       freeGpus: gpuResourcesManager.freeGPUs,
@@ -165,14 +145,10 @@ export default class UserController {
     res.json(gpuStatus);
   };
 
-  /**
-   * @param {Request} req
-   * @param {Response} res
-   */
-  static updateUser = async (req, res) => {
+  static updateUser = async (req: Request, res: Response) => {
     const { body } = validateSchema(req, { bodySchema: updateUserSchema });
 
-    const id = req.session.user.id;
+    const id = getSessionUser(req).id;
     const user = await User.update(id, body);
     const userData = User.toPublic(user);
 
@@ -182,23 +158,15 @@ export default class UserController {
     res.json(userData);
   };
 
-  /**
-   * @param {Request} req
-   * @param {Response} res
-   */
-  static deleteUser = async (req, res) => {
-    await User.del(req.session.user.id);
+  static deleteUser = async (req: Request, res: Response) => {
+    await User.del(getSessionUser(req).id);
 
     res.sendStatus(204);
   };
 
-  /**
-   * @param {Request} req
-   * @param {Response} res
-   */
-  static adminDeleteUser = async (req, res) => {
+  static adminDeleteUser = async (req: Request, res: Response) => {
     const { body } = validateSchema(req, { bodySchema: idUserSchema });
-    if (req.session.user.id === body.id) {
+    if (getSessionUser(req).id === body.id) {
       throw new ApiError(
         400,
         "This action cannot be used to delete your own account."

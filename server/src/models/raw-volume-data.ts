@@ -1,11 +1,9 @@
-// @ts-check
-
 import path from "path";
 import Utils from "../tools/utils";
-import VolumeData from "./volume-data";
+import VolumeData, { type CreateFromFilesOptions } from "./volume-data";
 import prismaManager from "../tools/prisma-manager";
 import fsPromises from "node:fs/promises";
-import { PendingUpload } from "../tools/file-handler";
+import type { PendingUpload } from "../tools/file-handler";
 import WriteLockManager from "../tools/write-lock-manager";
 import Volume from "./volume";
 import { ApiError } from "../tools/error-handler";
@@ -13,41 +11,26 @@ import appConfig from "../tools/config";
 import { ZipArchive } from "archiver";
 import RawVolumeDataFile from "./raw-volume-data-file";
 import { withTransaction } from "./database-model";
-import { Prisma } from "@prisma/client";
+import type { Prisma } from "@prisma/client";
+import type z from "zod";
+import type { volumeDescriptorSettingsSchema } from "@cocryovis/schemas/componentSchemas/volume-settings-schema";
 
-/**
- * @import z from "zod"
- * @import { tiltSeriesOptions } from "@cocryovis/schemas/componentSchemas/tilt-series-schema";
- * @import { volumeDescriptorSettingsSchema } from "@cocryovis/schemas/componentSchemas/volume-settings-schema";
- * @typedef { import("@prisma/client").RawVolumeData } RawVolumeDataDB
- */
-
-/**
- * @augments {VolumeData}
- */
 export default class RawVolumeData extends VolumeData {
-  static modelName = "rawVolumeData";
-  static fileModelName = "rawVolumeDataFile";
-  static lockManager = new WriteLockManager(this.modelName);
+  static override modelName = "rawVolumeData";
+  static override fileModelName = "rawVolumeDataFile";
+  static override lockManager = new WriteLockManager(this.modelName);
   static mrcTempDirectory = path.join(appConfig.tempPath, "mrc");
-  static fileClass = RawVolumeDataFile;
+  static override fileClass = RawVolumeDataFile;
 
-  static get db() {
+  static override get db() {
     return prismaManager.db.rawVolumeData;
   }
 
-  /**
-   * @param {number} id
-   * @returns {Promise<RawVolumeDataDB>}
-   */
-  static async getById(id) {
-    return await super.getById(id);
+  static override async getById(id: number): Promise<RawVolumeDataDB> {
+    return (await super.getById(id)) as RawVolumeDataDB;
   }
 
-  /**
-   * @param {number} id
-   */
-  static async getWithData(id) {
+  static override async getWithData(id: number) {
     const volumeData = await this.db.findUniqueOrThrow({
       where: { id: id },
       include: {
@@ -57,21 +40,14 @@ export default class RawVolumeData extends VolumeData {
     return volumeData;
   }
 
-  /**
-   * @param {number} id
-   * @returns {Promise<RawVolumeDataDB>}
-   */
-  static async getFromVolumeId(id) {
+  static async getFromVolumeId(id: number): Promise<RawVolumeDataDB | null> {
     const volumeData = await this.db.findUnique({
       where: { volumeId: id },
     });
     return volumeData;
   }
 
-  /**
-   * @param {number} id
-   */
-  static async getFromVolumeIdWithData(id) {
+  static async getFromVolumeIdWithData(id: number) {
     const volumeData = await this.db.findUnique({
       where: { volumeId: id },
       include: { dataFile: true },
@@ -79,41 +55,35 @@ export default class RawVolumeData extends VolumeData {
     return volumeData;
   }
 
-  /**
-   * @param {number} creatorId
-   * @param {number} volumeId
-   * @returns {Promise<RawVolumeDataDB>}
-   */
-  static async create(creatorId, volumeId) {
-    return await super.create(creatorId, volumeId);
+  static override async create(
+    creatorId: number,
+    volumeId: number
+  ): Promise<RawVolumeDataDB> {
+    return (await super.create(creatorId, volumeId)) as RawVolumeDataDB;
   }
 
-  /**
-   * @param {number} creatorId
-   * @param {number} volumeId
-   * @param {PendingUpload[]} files
-   * @param {z.infer<typeof volumeDescriptorSettingsSchema>} settings
-   * @param {{ skipLock?: boolean, client?: Prisma.TransactionClient, reconstructionParameters?: z.infer<tiltSeriesOptions> }} [options]
-   * @returns {Promise<RawVolumeDataDB>}
-   */
-  static async createFromFiles(creatorId, volumeId, files, settings, options) {
-    return await super.createFromFiles(
+  static override async createFromFiles(
+    creatorId: number,
+    volumeId: number,
+    files: PendingUpload[],
+    settings: z.infer<typeof volumeDescriptorSettingsSchema>,
+    options?: CreateFromFilesOptions
+  ): Promise<RawVolumeDataDB> {
+    return (await super.createFromFiles(
       creatorId,
       volumeId,
       files,
       settings,
       options
-    );
+    )) as RawVolumeDataDB;
   }
 
-  /**
-   * @param {number} creatorId
-   * @param {number} volumeId
-   * @param {PendingUpload} file
-   * @param {Prisma.TransactionClient | undefined} [client]
-   * @returns {Promise<RawVolumeDataDB>}
-   */
-  static async createFromMrcFile(creatorId, volumeId, file, client) {
+  static async createFromMrcFile(
+    creatorId: number,
+    volumeId: number,
+    file: PendingUpload,
+    client?: Prisma.TransactionClient
+  ): Promise<RawVolumeDataDB> {
     return await Volume.withWriteLock(volumeId, [this.modelName], async () => {
       await fsPromises.mkdir(RawVolumeData.mrcTempDirectory, {
         recursive: true,
@@ -143,7 +113,6 @@ export default class RawVolumeData extends VolumeData {
             },
           });
 
-          /** @type {RawVolumeDataDB} */
           const volumeData = await tx.rawVolumeData.create({
             data: {
               creator: {
@@ -163,7 +132,7 @@ export default class RawVolumeData extends VolumeData {
               name: Utils.stripExtension(rawFileName),
             },
           });
-          let folderPath = null;
+          let folderPath: string | null = null;
           try {
             folderPath = await RawVolumeDataFile.createVolumeDataFolder(
               volumeData.dataFileId
@@ -210,21 +179,17 @@ export default class RawVolumeData extends VolumeData {
     });
   }
 
-  /**
-   * @param {number} id
-   * @param {import("@prisma/client").Prisma.RawVolumeDataUpdateInput} changes
-   * @returns {Promise<RawVolumeDataDB>}
-   */
-  static async update(id, changes) {
-    return await super.update(id, changes);
+  static override async update(
+    id: number,
+    changes: Prisma.RawVolumeDataUpdateInput
+  ): Promise<RawVolumeDataDB> {
+    return (await super.update(id, changes)) as RawVolumeDataDB;
   }
 
-  /**
-   * @param {number} id
-   * @param {Prisma.TransactionClient | undefined} [client]
-   * @returns {Promise<RawVolumeDataDB>}
-   */
-  static async del(id, client) {
+  static override async del(
+    id: number,
+    client?: Prisma.TransactionClient
+  ): Promise<RawVolumeDataDB> {
     return await withTransaction(client, async (tx) => {
       const rawVolumeData = await tx.rawVolumeData.delete({
         where: { id: id },
@@ -245,14 +210,8 @@ export default class RawVolumeData extends VolumeData {
     });
   }
 
-  /**
-   * @param {number} id
-   * @param {boolean} downloadRawFile
-   * @param {boolean} downloadSettingsFile
-   * @param {boolean} downloadMrcFile
-   */
-  static async prepareDataForDownload(
-    id,
+  static override async prepareDataForDownload(
+    id: number,
     downloadRawFile = true,
     downloadSettingsFile = true,
     downloadMrcFile = false
@@ -277,7 +236,7 @@ export default class RawVolumeData extends VolumeData {
       const settings = RawVolumeData.toSettingSchema(volumeData, volume);
       const settingsJSON = JSON.stringify(settings, null, 4);
       archive.append(settingsJSON, {
-        name: `${Utils.stripExtension(volumeData.dataFile.rawFilePath)}.json`,
+        name: `${Utils.stripExtension(settings.file)}.json`,
       });
       hasFiles = true;
     }
@@ -292,6 +251,9 @@ export default class RawVolumeData extends VolumeData {
       throw new ApiError(404, "No files to download.");
     }
 
+    if (!volumeData.dataFile.path) {
+      throw new ApiError(404, "Volume data has no files on disk.");
+    }
     const outputFileName = `${this.modelName}_${Utils.stripExtension(
       volumeData.dataFile.path
     )}`;

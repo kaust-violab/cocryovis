@@ -2,6 +2,7 @@ import { ApiError } from "../tools/error-handler";
 import { type Request, type Response } from "express";
 import type ReconstructionHandler from "../tools/reconstruction-handler";
 import { tiltSeriesOptions } from "@cocryovis/schemas/componentSchemas/tilt-series-schema";
+import { getSessionUser } from "../middleware/restrict";
 
 export default class PreProcessingController {
   static async queueTiltSeriesReconstruction(
@@ -40,7 +41,7 @@ export default class PreProcessingController {
         req.files.tiltSeries,
         options,
         volumeId,
-        req.session.user.id
+        getSessionUser(req).id
       );
 
     res.json({ id: taskHistory.id });

@@ -1,49 +1,34 @@
-// @ts-check
-
-import VolumeData from "./volume-data";
+import VolumeData, {
+  type CreateFromFilesOptions,
+  type PseudoVolumeDataWithFileDB,
+} from "./volume-data";
 import prismaManager from "../tools/prisma-manager";
 import fsPromises from "fs/promises";
 import path from "path";
 import WriteLockManager from "../tools/write-lock-manager";
-
-import { PendingUpload } from "../tools/file-handler";
+import type { PendingUpload } from "../tools/file-handler";
 import PseudoVolumeDataFile from "./pseudo-volume-data-file";
 import Utils from "../tools/utils";
-import { Prisma } from "@prisma/client";
+import type { Prisma } from "@prisma/client";
+import type z from "zod";
+import type { volumeSettings } from "@cocryovis/schemas/componentSchemas/volume-settings-schema";
 import { withTransaction } from "./database-model";
 
-/**
- * @import z from "zod"
- * @import { tiltSeriesOptions } from "@cocryovis/schemas/componentSchemas/tilt-series-schema";
- * @import { volumeSettings } from "@cocryovis/schemas/componentSchemas/volume-settings-schema";
- * @typedef { import("@prisma/client").PseudoLabelVolumeData } PseudoVolumeDataDB
- */
-
-/**
- * @augments {VolumeData}
- */
 export default class PseudoLabeledVolumeData extends VolumeData {
-  static modelName = "pseudoLabelVolumeData";
-  static fileModelName = "pseudoVolumeDataFile";
-  static lockManager = new WriteLockManager(this.modelName);
-  static fileClass = PseudoVolumeDataFile;
+  static override modelName = "pseudoLabelVolumeData";
+  static override fileModelName = "pseudoVolumeDataFile";
+  static override lockManager = new WriteLockManager(this.modelName);
+  static override fileClass = PseudoVolumeDataFile;
 
-  static get db() {
+  static override get db() {
     return prismaManager.db.pseudoLabelVolumeData;
   }
 
-  /**
-   * @param {number} id
-   * @returns {Promise<PseudoVolumeDataDB>}
-   */
-  static async getById(id) {
-    return await super.getById(id);
+  static override async getById(id: number): Promise<PseudoLabelVolumeDataDB> {
+    return (await super.getById(id)) as PseudoLabelVolumeDataDB;
   }
 
-  /**
-   * @param {number} id
-   */
-  static async getWithData(id) {
+  static override async getWithData(id: number) {
     const volumeData = await this.db.findUniqueOrThrow({
       where: { id: id },
       include: {
@@ -53,47 +38,40 @@ export default class PseudoLabeledVolumeData extends VolumeData {
     return volumeData;
   }
 
-  /**
-   * @param {number} creatorId
-   * @param {number} volumeId
-   * @returns {Promise<PseudoVolumeDataDB>}
-   */
-  static async create(creatorId, volumeId) {
-    return await super.create(creatorId, volumeId);
+  static override async create(
+    creatorId: number,
+    volumeId: number
+  ): Promise<PseudoLabelVolumeDataDB> {
+    return (await super.create(creatorId, volumeId)) as PseudoLabelVolumeDataDB;
   }
 
-  /**
-   * @param {number} creatorId
-   * @param {number} volumeId
-   * @param {PendingUpload[]} files
-   * @param {z.infer<typeof volumeSettings>} settings
-   * @param {{ skipLock?: boolean, client?: Prisma.TransactionClient, reconstructionParameters?: z.infer<tiltSeriesOptions> }} [options]
-   * @returns {Promise<PseudoVolumeDataDB>}
-   */
-  static async createFromFiles(creatorId, volumeId, files, settings, options) {
-    return await super.createFromFiles(
+  static override async createFromFiles(
+    creatorId: number,
+    volumeId: number,
+    files: PendingUpload[],
+    settings: z.infer<typeof volumeSettings>,
+    options?: CreateFromFilesOptions
+  ): Promise<PseudoLabelVolumeDataDB> {
+    return (await super.createFromFiles(
       creatorId,
       volumeId,
       files,
       settings,
       options
-    );
+    )) as PseudoLabelVolumeDataDB;
   }
 
-  /**
-   * @param {number} id
-   * @param {import("@prisma/client").Prisma.PseudoLabelVolumeDataUpdateInput} changes
-   * @returns {Promise<PseudoVolumeDataDB>}
-   */
-  static async update(id, changes) {
-    return await super.update(id, changes);
+  static override async update(
+    id: number,
+    changes: Prisma.PseudoLabelVolumeDataUpdateInput
+  ): Promise<PseudoLabelVolumeDataDB> {
+    return (await super.update(id, changes)) as PseudoLabelVolumeDataDB;
   }
 
-  /**
-   * @param {number} id
-   * @param {Prisma.TransactionClient | undefined} [client]
-   */
-  static async del(id, client) {
+  static override async del(
+    id: number,
+    client?: Prisma.TransactionClient
+  ): Promise<PseudoLabelVolumeDataDB> {
     return await withTransaction(client, async (tx) => {
       const volumeData = await tx.pseudoLabelVolumeData.delete({
         where: { id: id },
@@ -114,25 +92,16 @@ export default class PseudoLabeledVolumeData extends VolumeData {
     });
   }
 
-  /**
-   * @param {string} filePath
-   * @param {number} creatorId
-   * @param {number} volumeId
-   * @param {number} originalLabelId
-   * @param {CommonVolumeSettings} settings
-   * @param {import("@prisma/client").Prisma.TransactionClient} client
-   * @returns {Promise<import("./volume-data").PseudoVolumeDataWithFileDB>}
-   */
   static async fromRawFile(
-    filePath,
-    creatorId,
-    volumeId,
-    originalLabelId,
-    settings,
-    client = prismaManager.db
-  ) {
+    filePath: string,
+    creatorId: number,
+    volumeId: number,
+    originalLabelId: number,
+    settings: CommonVolumeSettings,
+    client: Prisma.TransactionClient = prismaManager.db
+  ): Promise<PseudoVolumeDataWithFileDB> {
     const fileName = path.basename(filePath);
-    let pseudoVolume = await client.pseudoLabelVolumeData.create({
+    const pseudoVolume = await client.pseudoLabelVolumeData.create({
       data: {
         creator: {
           connect: {
@@ -172,7 +141,7 @@ export default class PseudoLabeledVolumeData extends VolumeData {
 
     const newFilePath = path.join(folderPath, fileName);
     await fsPromises.rename(filePath, newFilePath);
-    let dataFile = null;
+    let dataFile: { path: string | null } | null = null;
     try {
       dataFile = await client.pseudoVolumeDataFile.update({
         where: { id: pseudoVolume.id },
@@ -188,7 +157,7 @@ export default class PseudoLabeledVolumeData extends VolumeData {
         }
       } catch (err) {
         console.error(
-          `Failed to delete volume data folder on failed operation:\n${err}`
+          `Failed to delete volume data folder on failed operation:\n${String(err)}`
         );
       }
       throw error;

@@ -1,5 +1,3 @@
-// @ts-check
-
 import DatabaseModel, { withTransaction } from "./database-model";
 import prismaManager from "../tools/prisma-manager";
 import fsPromises from "fs/promises";
@@ -7,30 +5,35 @@ import { ApiError, MissingResourceError } from "../tools/error-handler";
 import RawVolumeDataFile from "./raw-volume-data-file";
 import SparseVolumeDataFile from "./sparse-volume-data-file";
 import PseudoVolumeDataFile from "./pseudo-volume-data-file";
-import { Prisma } from "@prisma/client";
+import type {
+  Prisma,
+  Project as PrismaProject,
+  ProjectAccess as PrismaProjectAccess,
+} from "@prisma/client";
 import ResultDataFile from "./result-data-file";
+import type z from "zod";
+import type { volumeQuerySchema } from "@cocryovis/schemas/volume-path-schema";
 
-/**
- * @import z from "zod"
- * @import { volumeQuerySchema } from "@cocryovis/schemas/volume-path-schema"
- * @typedef { import("@prisma/client").Project } ProjectDB
- * @typedef { import("@prisma/client").ProjectAccess } ProjectAccess
- * @typedef { { volumes?: boolean | { include: z.infer<volumeQuerySchema> }, models?: boolean | { include: { checkpoints: boolean } }, owner?: boolean } } Options
- * @typedef {{userId: number, accessLevel: number}} UserAccessInfo
- */
+export type ProjectDB = PrismaProject;
+export type ProjectAccess = PrismaProjectAccess;
+export interface Options {
+  volumes?: boolean | { include: z.infer<typeof volumeQuerySchema> };
+  models?: boolean | { include: { checkpoints: boolean } };
+  owner?: boolean;
+}
+export interface UserAccessInfo {
+  userId: number;
+  accessLevel: number;
+}
 
 export default class Project extends DatabaseModel {
-  static modelName = "project";
+  static override modelName = "project";
 
-  static get db() {
+  static override get db() {
     return prismaManager.db.project;
   }
 
-  /**
-   * @param {number} projectId
-   * @param {number} userId
-   */
-  static async getByIdDeep(projectId, userId = -1) {
+  static async getByIdDeep(projectId: number, userId = -1) {
     const project = await this.db.findUnique({
       where: {
         id: projectId,
@@ -65,7 +68,7 @@ export default class Project extends DatabaseModel {
       throw ApiError.fromId(projectId, this.modelName);
     }
 
-    let projectWithAccessLevel = { ...project, accessLevel: -1 };
+    const projectWithAccessLevel = { ...project, accessLevel: -1 };
 
     if (project.ownerId === userId) {
       projectWithAccessLevel.accessLevel = 2;
@@ -76,13 +79,9 @@ export default class Project extends DatabaseModel {
     return projectWithAccessLevel;
   }
 
-  /**
-   * @param {number} userId
-   * @param {Options} options
-   */
   static async getUserProjects(
-    userId,
-    { volumes = false, models = false, owner = false } = {}
+    userId: number,
+    { volumes = false, models = false, owner = false }: Options = {}
   ) {
     const projects = await this.db.findMany({
       where: {
@@ -112,7 +111,7 @@ export default class Project extends DatabaseModel {
     });
 
     return projects.map(({ projectAccess, ...project }) => {
-      let updatedProject = { ...project, accessLevel: -1 };
+      const updatedProject = { ...project, accessLevel: -1 };
 
       if (project.ownerId === userId) {
         updatedProject.accessLevel = 2;
@@ -124,10 +123,7 @@ export default class Project extends DatabaseModel {
     });
   }
 
-  /**
-   * @param {number} userId
-   */
-  static async getUserProjectsDeep(userId) {
+  static async getUserProjectsDeep(userId: number) {
     const projects = await this.db.findMany({
       where: {
         OR: [
@@ -170,7 +166,7 @@ export default class Project extends DatabaseModel {
     });
 
     return projects.map(({ projectAccess, ...project }) => {
-      let updatedProject = { ...project, accessLevel: -1 };
+      const updatedProject = { ...project, accessLevel: -1 };
 
       if (project.ownerId === userId) {
         updatedProject.accessLevel = 2;
@@ -182,12 +178,10 @@ export default class Project extends DatabaseModel {
     });
   }
 
-  /**
-   * @param {number} projectId
-   * @param {number} userId
-   * @returns {Promise<number>}
-   */
-  static async getUserAccessInfo(projectId, userId) {
+  static async getUserAccessInfo(
+    projectId: number,
+    userId: number
+  ): Promise<number> {
     const projectAccess = await prismaManager.db.projectAccess.findUnique({
       where: {
         userId_projectId: {
@@ -199,11 +193,10 @@ export default class Project extends DatabaseModel {
     return projectAccess?.accessLevel ?? -1;
   }
 
-  /**
-   * @param {number} id
-   * @returns {Promise<{projectAccess: {ownerId: number, publicAccess: number}, userAccess: UserAccessInfo[]}>}
-   */
-  static async getAccessInfo(id) {
+  static async getAccessInfo(id: number): Promise<{
+    projectAccess: { ownerId: number; publicAccess: number } | null;
+    userAccess: UserAccessInfo[];
+  }> {
     const userAccess = await this.getProjectUsersAccessInfo(id);
     const projectAccess = await prismaManager.db.project.findUnique({
       where: { id: id },
@@ -215,11 +208,9 @@ export default class Project extends DatabaseModel {
     return { projectAccess: projectAccess, userAccess: userAccess };
   }
 
-  /**
-   * @param {number} id
-   * @returns {Promise<UserAccessInfo[]>}
-   */
-  static async getProjectUsersAccessInfo(id) {
+  static async getProjectUsersAccessInfo(
+    id: number
+  ): Promise<UserAccessInfo[]> {
     const userAccess = await prismaManager.db.projectAccess.findMany({
       where: {
         projectId: id,
@@ -232,13 +223,11 @@ export default class Project extends DatabaseModel {
     return userAccess;
   }
 
-  /**
-   * @param {number} id
-   * @param {{publicAccess: number, userAccess: Array<UserAccessInfo>}} accessInfo
-   * @param {Prisma.TransactionClient | undefined} [client]
-   * @returns {Promise<{publicAccess: number, userAccess: UserAccessInfo[]}>}
-   */
-  static async setAccess(id, accessInfo, client) {
+  static async setAccess(
+    id: number,
+    accessInfo: { publicAccess: number; userAccess: UserAccessInfo[] },
+    client?: Prisma.TransactionClient
+  ): Promise<{ publicAccess: number; userAccess: UserAccessInfo[] }> {
     return await withTransaction(client, async (tx) => {
       let project = await tx.project.findUnique({
         where: { id: id },
@@ -248,8 +237,9 @@ export default class Project extends DatabaseModel {
         throw ApiError.fromId(id, this.modelName);
       }
 
+      const ownerId = project.ownerId;
       accessInfo.userAccess = accessInfo.userAccess.filter(
-        (info) => info.userId !== project.ownerId
+        (info) => info.userId !== ownerId
       );
 
       if (
@@ -319,13 +309,9 @@ export default class Project extends DatabaseModel {
     });
   }
 
-  /**
-   * @param {number} id
-   * @param {Options} options
-   */
-  static async getById(
-    id,
-    { volumes = false, models = false, owner = false } = {}
+  static override async getById(
+    id: number,
+    { volumes = false, models = false, owner = false }: Options = {}
   ) {
     const entry = await this.db.findUnique({
       where: { id: id },
@@ -341,13 +327,11 @@ export default class Project extends DatabaseModel {
     return entry;
   }
 
-  /**
-   * @param {string} name
-   * @param {string} description
-   * @param {number} ownerId
-   * @returns {Promise<ProjectDB>}
-   */
-  static async create(name, description, ownerId) {
+  static override async create(
+    name: string,
+    description: string,
+    ownerId: number
+  ): Promise<ProjectDB> {
     return await prismaManager.db.project.create({
       data: { name: name, description: description, ownerId: ownerId },
     });
@@ -409,22 +393,18 @@ export default class Project extends DatabaseModel {
   //     });
   // }
 
-  /**
-   * @param {number} id
-   * @param {import("@prisma/client").Prisma.ProjectUpdateInput} changes
-   * @returns {Promise<ProjectDB>}
-   */
-  static async update(id, changes) {
-    return await super.update(id, changes);
+  static override async update(
+    id: number,
+    changes: Prisma.ProjectUpdateInput
+  ): Promise<ProjectDB> {
+    return (await super.update(id, changes)) as ProjectDB;
   }
 
-  /**
-   * @param {number} id
-   * @param {Prisma.TransactionClient | undefined} [client]
-   * @returns { Promise<ProjectDB> }
-   */
-  static async del(id, client) {
-    const fileDeleteStack = [];
+  static override async del(
+    id: number,
+    client?: Prisma.TransactionClient
+  ): Promise<ProjectDB> {
+    const fileDeleteStack: string[] = [];
 
     const project = await withTransaction(client, async (tx) => {
       const project = await this.withWriteLock(id, null, () => {
@@ -469,9 +449,11 @@ export default class Project extends DatabaseModel {
     });
 
     for (const file of fileDeleteStack) {
-      fsPromises.rm(file, { recursive: true, force: true }).catch((error) => {
-        console.error(`Failed to delete ${file}: ${error}`);
-      });
+      fsPromises
+        .rm(file, { recursive: true, force: true })
+        .catch((error: unknown) => {
+          console.error(`Failed to delete ${file}: ${String(error)}`);
+        });
     }
 
     return project;

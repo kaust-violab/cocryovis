@@ -1,15 +1,21 @@
-// @ts-check
-
 import DatabaseModel from "./database-model";
 import prismaManager from "../tools/prisma-manager";
 import WebSocketManager, { ActionTypes } from "../tools/websocket-manager";
+import type { Prisma } from "@prisma/client";
 
-/**
- * @typedef { import("@prisma/client").TaskHistory } TaskHistoryDB
- */
+export type { TaskHistory as TaskHistoryDB } from "@prisma/client";
+
+export type ParsedTaskHistory<T> = Omit<
+  T,
+  "enqueuedTime" | "startTime" | "endTime"
+> & {
+  enqueuedTime: string;
+  startTime: string | null;
+  endTime: string | null;
+};
 
 export default class TaskHistory extends DatabaseModel {
-  static modelName = "taskHistory";
+  static override modelName = "taskHistory";
 
   static type = Object.freeze({
     LabelInference: 0,
@@ -25,25 +31,17 @@ export default class TaskHistory extends DatabaseModel {
     failed: 3,
   });
 
-  static get db() {
+  static override get db() {
     return prismaManager.db.taskHistory;
   }
 
-  /**
-   * @param {number} id
-   */
-  static async getById(id) {
-    const task = await super.getById(id);
+  static override async getById(id: number) {
+    const task = (await super.getById(id)) as TaskHistoryDB;
 
     return TaskHistory.parseTaskHistory(task);
   }
 
-  /**
-   * @param {number} userId
-   * @param {number} [page]
-   * @param {number} [pageSize]
-   */
-  static async getFromUser(userId, page, pageSize) {
+  static async getFromUser(userId: number, page?: number, pageSize?: number) {
     const taskHistoryLenght = await this.db.count({
       where: {
         userId: userId,
@@ -141,11 +139,13 @@ export default class TaskHistory extends DatabaseModel {
     });
   }
 
-  /**
-   * @template T
-   * @param {T & {enqueuedTime: Date | null, startTime: Date | null, endTime: Date | null}} taskHistory
-   */
-  static parseTaskHistory(taskHistory) {
+  static parseTaskHistory<
+    T extends {
+      enqueuedTime: Date;
+      startTime: Date | null;
+      endTime: Date | null;
+    },
+  >(taskHistory: T): ParsedTaskHistory<T> {
     return {
       ...taskHistory,
       enqueuedTime: taskHistory.enqueuedTime.toISOString(),
@@ -154,10 +154,9 @@ export default class TaskHistory extends DatabaseModel {
     };
   }
 
-  /**
-   * @param {import("@prisma/client").Prisma.TaskHistoryUncheckedCreateInput} parameters
-   */
-  static async create(parameters) {
+  static override async create(
+    parameters: Prisma.TaskHistoryUncheckedCreateInput
+  ) {
     const taskHistory = await this.db.create({
       data: parameters,
       include: {
@@ -185,16 +184,17 @@ export default class TaskHistory extends DatabaseModel {
     return parsedTaskHistory;
   }
 
-  /**
-   * @param {number} id
-   * @param {import("@prisma/client").Prisma.TaskHistoryUpdateInput} changes
-   */
-  static async update(id, changes) {
-    const taskHistory = await super.update(id, changes, {
+  static override async update(
+    id: number,
+    changes: Prisma.TaskHistoryUpdateInput
+  ) {
+    const taskHistory = (await super.update(id, changes, {
       volume: true,
       model: true,
       checkpoint: true,
-    });
+    })) as Prisma.TaskHistoryGetPayload<{
+      include: { volume: true; model: true; checkpoint: true };
+    }>;
 
     const parsedTaskHistory = TaskHistory.parseTaskHistory(taskHistory);
 
@@ -215,11 +215,8 @@ export default class TaskHistory extends DatabaseModel {
     return parsedTaskHistory;
   }
 
-  /**
-   * @param {number} id
-   */
-  static async del(id) {
-    const taskHistory = await super.del(id);
+  static override async del(id: number) {
+    const taskHistory = (await super.del(id)) as TaskHistoryDB;
     const parsedTaskHistory = TaskHistory.parseTaskHistory(taskHistory);
 
     if (
@@ -232,10 +229,7 @@ export default class TaskHistory extends DatabaseModel {
     return parsedTaskHistory;
   }
 
-  /**
-   * @param {TaskHistoryDB} taskHistory
-   */
-  static async onQueueUpdate(taskHistory) {
+  static async onQueueUpdate(taskHistory: TaskHistoryDB) {
     if (taskHistory.taskType === TaskHistory.type.LabelInference) {
       await TaskHistory.onCPUQueueUpdate();
     } else {

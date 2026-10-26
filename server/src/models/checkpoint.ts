@@ -1,5 +1,3 @@
-// @ts-check
-
 import DatabaseModel, { withTransaction } from "./database-model";
 import path from "path";
 import fsPromises from "node:fs/promises";
@@ -7,38 +5,28 @@ import prismaManager from "../tools/prisma-manager";
 import appConfig from "../tools/config";
 import fileSystem from "fs";
 import { unpackFiles } from "../tools/file-handler";
-import fileUpload from "express-fileupload";
+import type fileUpload from "express-fileupload";
 import WriteLockManager from "../tools/write-lock-manager";
 import { ApiError } from "../tools/error-handler";
-import { Prisma } from "@prisma/client";
+import type { Prisma, Checkpoint as PrismaCheckpoint } from "@prisma/client";
 
-/**
- * @typedef { import("@prisma/client").Checkpoint } CheckpointDB
- */
+export type CheckpointDB = PrismaCheckpoint;
 
 export default class Checkpoint extends DatabaseModel {
   static checkpointFolder = "checkpoints";
   static acceptedFileExtensions = [".ckpt"];
-  static modelName = "checkpoint";
-  static lockManager = new WriteLockManager(this.modelName);
+  static override modelName = "checkpoint";
+  static override lockManager = new WriteLockManager(this.modelName);
 
-  static get db() {
+  static override get db() {
     return prismaManager.db.checkpoint;
   }
 
-  /**
-   * @param {number} id
-   * @returns {Promise<CheckpointDB>}
-   */
-  static async getById(id) {
-    return await super.getById(id);
+  static override async getById(id: number): Promise<CheckpointDB> {
+    return (await super.getById(id)) as CheckpointDB;
   }
 
-  /**
-   * @param {number} modelId
-   * @returns {Promise<CheckpointDB[]>}
-   */
-  static async getFromModel(modelId) {
+  static async getFromModel(modelId: number): Promise<CheckpointDB[]> {
     const checkpoints = await this.db.findMany({
       where: {
         model: {
@@ -50,25 +38,20 @@ export default class Checkpoint extends DatabaseModel {
     return checkpoints;
   }
 
-  /**
-   * @param {number[]} ids
-   * @returns {Promise<CheckpointDB[]>}
-   */
-  static async getByIds(ids) {
-    return await super.getByIds(ids);
+  static override async getByIds(ids: number[]): Promise<CheckpointDB[]> {
+    return (await super.getByIds(ids)) as CheckpointDB[];
   }
 
-  /**
-   * @param {number} creatorId
-   * @param {number} modelId
-   * @param {Prisma.TransactionClient | undefined} [client]
-   * @returns {Promise<CheckpointDB>}
-   */
-  static async create(creatorId, modelId, client) {
+  static override async create(
+    creatorId: number,
+    modelId: number,
+    client?: Prisma.TransactionClient
+  ): Promise<CheckpointDB> {
     return await withTransaction(client, async (tx) => {
-      let checkpoint = await tx[this.modelName].create({
+      let checkpoint = await tx[this.modelName as "checkpoint"].create({
         data: {
           creatorId: creatorId,
+          // @ts-expect-error -- pre-existing: Checkpoint has no "models" relation; kept to preserve original behaviour
           models: {
             connect: { id: modelId },
           },
@@ -83,7 +66,7 @@ export default class Checkpoint extends DatabaseModel {
           data: { folderPath: folderPath },
         });
       } catch (error) {
-        await fsPromises.rm(checkpoint.folderPath, {
+        await fsPromises.rm(folderPath, {
           recursive: true,
           force: true,
         });
@@ -93,27 +76,23 @@ export default class Checkpoint extends DatabaseModel {
     });
   }
 
-  /**
-   * @param {number} creatorId
-   * @param {number} modelId
-   * @param {fileUpload.UploadedFile[]} files
-   * @param {Prisma.TransactionClient | undefined} [client]
-   * @returns {Promise<CheckpointDB[]>}
-   */
-  static async createFromFiles(creatorId, modelId, files, client) {
+  static async createFromFiles(
+    creatorId: number,
+    modelId: number,
+    files: fileUpload.UploadedFile[],
+    client?: Prisma.TransactionClient
+  ): Promise<CheckpointDB[]> {
     const unpackedFiles = await unpackFiles(files, this.acceptedFileExtensions);
     if (unpackedFiles.length === 0) {
       throw new Error("No valid checkpoint files found");
     }
 
-    /** @type {CheckpointDB[]} */
-    const result = [];
+    const result: CheckpointDB[] = [];
 
     for (const unpackedFile of unpackedFiles) {
       result.push(
         await withTransaction(client, async (tx) => {
-          /** @type {CheckpointDB} */
-          let checkpoint = await tx.checkpoint.create({
+          let checkpoint: CheckpointDB = await tx.checkpoint.create({
             data: {
               creatorId,
               modelId,
@@ -147,26 +126,17 @@ export default class Checkpoint extends DatabaseModel {
     return result;
   }
 
-  /**
-   * @param {number} creatorId
-   * @param {number} modelId
-   * @param {number[]} labelIds
-   * @param {string} folderPath
-   * @param {string} filePath
-   * @param {Prisma.TransactionClient | undefined} [client]
-   */
   static async createFromFolder(
-    creatorId,
-    modelId,
-    labelIds,
-    folderPath,
-    filePath,
-    client
+    creatorId: number,
+    modelId: number,
+    labelIds: number[],
+    folderPath: string,
+    filePath: string,
+    client?: Prisma.TransactionClient
   ) {
     try {
       return await withTransaction(client, async (tx) => {
-        /** @type {CheckpointDB} */
-        let checkpoint = await tx.checkpoint.create({
+        let checkpoint: CheckpointDB = await tx.checkpoint.create({
           data: {
             creatorId: creatorId,
             modelId,
@@ -211,20 +181,14 @@ export default class Checkpoint extends DatabaseModel {
     }
   }
 
-  /**
-   * @param {number} id
-   * @param {import("@prisma/client").Prisma.CheckpointUpdateInput} changes
-   * @returns {Promise<CheckpointDB>}
-   */
-  static async update(id, changes) {
-    return await super.update(id, changes);
+  static override async update(
+    id: number,
+    changes: Prisma.CheckpointUpdateInput
+  ): Promise<CheckpointDB> {
+    return (await super.update(id, changes)) as CheckpointDB;
   }
 
-  /**
-   * @param {number} checkpointId
-   * @returns {Promise<CheckpointDB>}
-   */
-  static async del(checkpointId) {
+  static override async del(checkpointId: number): Promise<CheckpointDB> {
     return await this.withWriteLock(checkpointId, null, () => {
       return this.db.delete({
         where: { id: checkpointId },
@@ -290,7 +254,7 @@ export default class Checkpoint extends DatabaseModel {
     //             );
 
     //             if (checkpoint.folderPath) {
-    //                 await fsPromises.rm(checkpoint.folderPath, {
+    //                 await fsPromises.rm(folderPath, {
     //                     recursive: true,
     //                     force: true,
     //                 });
@@ -314,10 +278,7 @@ export default class Checkpoint extends DatabaseModel {
     // return checkpoint;
   }
 
-  /**
-   * @param {CheckpointDB} checkpoint
-   */
-  static async #createFolder(checkpoint) {
+  static async #createFolder(checkpoint: CheckpointDB) {
     const folderPath = path.join(
       appConfig.dataPath,
       this.checkpointFolder,
@@ -337,19 +298,11 @@ export default class Checkpoint extends DatabaseModel {
     return folderPath;
   }
 
-  /**
-   * @param {CheckpointDB} checkpoint
-   * @returns {string[]}
-   */
-  static getFilePaths(checkpoint) {
-    return [checkpoint.folderPath];
+  static getFilePaths(checkpoint: CheckpointDB): string[] {
+    return checkpoint.folderPath ? [checkpoint.folderPath] : [];
   }
 
-  /**
-   * @param {number} id
-   * @returns {Promise<string>}
-   */
-  static async reserveFolderName(id) {
+  static async reserveFolderName(id: number): Promise<string> {
     const checkpointFolderPath = path.join(
       appConfig.dataPath,
       this.checkpointFolder

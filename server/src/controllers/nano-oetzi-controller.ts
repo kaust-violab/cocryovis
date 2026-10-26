@@ -5,6 +5,7 @@ import {
 import validateSchema from "../tools/validate-schema";
 import { type Request, type Response } from "express";
 import type NanoOetziHandler from "../tools/nano-oetzi-handler.js";
+import { getSessionUser } from "../middleware/restrict";
 
 export default class NanoOetziController {
   static queueInference = async (
@@ -20,7 +21,7 @@ export default class NanoOetziController {
     const taskHistory = await nanoOetziHandler.queueInference(
       checkpointId,
       volumeId,
-      req.session.user.id
+      getSessionUser(req).id
     );
 
     res.json({ taskId: taskHistory.id });
@@ -35,7 +36,7 @@ export default class NanoOetziController {
 
     const taskHistory = await nanoOetziHandler.queueTraining(
       body.modelId,
-      req.session.user.id,
+      getSessionUser(req).id,
       body.trainingVolumes,
       body.validationVolumes,
       body.testingVolumes,

@@ -1,25 +1,19 @@
-// @ts-check
-
 import { Prisma } from "@prisma/client";
 
-import WriteLockManager, {
-  WriteMultiLock,
-} from "../tools/write-lock-manager";
+import type WriteLockManager from "../tools/write-lock-manager";
+import { WriteMultiLock } from "../tools/write-lock-manager";
 import { MissingResourceError } from "../tools/error-handler";
 import prismaManager from "../tools/prisma-manager";
 
-/**
- * @template T
- * @param {Prisma.TransactionClient | undefined} client
- * @param {(tx: Prisma.TransactionClient) => Promise<T>} callback
- * @param {{ maxWait?: number, timeout?: number, isolationLevel?: Prisma.TransactionIsolationLevel }} [options]
- * @returns {Promise<T>}
- */
-export async function withTransaction(
-  client,
-  callback,
-  options = { timeout: 6000 }
-) {
+export async function withTransaction<T>(
+  client: Prisma.TransactionClient | undefined,
+  callback: (tx: Prisma.TransactionClient) => Promise<T>,
+  options: {
+    maxWait?: number;
+    timeout?: number;
+    isolationLevel?: Prisma.TransactionIsolationLevel;
+  } = { timeout: 6000 }
+): Promise<T> {
   if (client !== undefined) {
     return await callback(client);
   }
@@ -29,27 +23,31 @@ export async function withTransaction(
   }, options);
 }
 
-export default class DatabaseModel {
-  /**
-   * @constant
-   * @type {string}
-   */
-  static modelName = "";
-  /** @type {WriteLockManager?} */ static lockManager = null;
+/**
+ * Minimal shape of the Prisma delegate used by the generic DatabaseModel methods.
+ * Subclasses override `db` with a concrete Prisma delegate.
+ */
+interface GenericModelDelegate {
+  findUniqueOrThrow(args: { where: { id: number } }): Promise<unknown>;
+  findMany(args: { where: { id: { in: number[] } } }): Promise<unknown[]>;
+  update(args: {
+    where: { id: number };
+    data: object;
+    include: object | null;
+  }): Promise<unknown>;
+  delete(args: { where: { id: number } }): Promise<unknown>;
+}
 
-  /**
-   * @returns {any}
-   */
-  static get db() {
+export default class DatabaseModel {
+  static modelName = "";
+  static lockManager: WriteLockManager | null = null;
+
+  static get db(): unknown {
     throw new Error("Method not implemented");
   }
 
-  /**
-   * @param {number} id
-   * @returns {Promise<object>}
-   */
-  static async getById(id) {
-    const entry = await this.db.findUniqueOrThrow({
+  static async getById(id: number): Promise<unknown> {
+    const entry = await (this.db as GenericModelDelegate).findUniqueOrThrow({
       where: { id: id },
     });
     if (entry === null) {
@@ -58,15 +56,11 @@ export default class DatabaseModel {
     return entry;
   }
 
-  /**
-   * @param {number[]} ids
-   * @returns {Promise<object[]>}
-   */
-  static async getByIds(ids) {
+  static async getByIds(ids: number[]): Promise<unknown[]> {
     if (ids.length === 0) {
       return [];
     }
-    const entries = await this.db.findMany({
+    const entries = await (this.db as GenericModelDelegate).findMany({
       where: {
         id: {
           in: ids,
@@ -76,24 +70,18 @@ export default class DatabaseModel {
     return entries;
   }
 
-  /**
-   * @param {...*} _var_args
-   * @returns {Promise<object>}
-   */
-  static async create(..._var_args) {
-    throw new Error("Method not implemented");
+  static create(..._var_args: unknown[]): Promise<unknown> {
+    return Promise.reject(new Error("Method not implemented"));
   }
 
-  /**
-   * @param {number} id
-   * @param {object} changes
-   * @param {object} include
-   * @returns {Promise<object>}
-   */
-  static async update(id, changes, include = null) {
+  static async update(
+    id: number,
+    changes: object,
+    include: object | null = null
+  ): Promise<unknown> {
     return this.withWriteLock(id, null, () => {
       try {
-        return this.db.update({
+        return (this.db as GenericModelDelegate).update({
           where: { id: id },
           data: changes,
           include: include,
@@ -107,14 +95,10 @@ export default class DatabaseModel {
     });
   }
 
-  /**
-   * @param {number} id
-   * @returns {Promise<object>}
-   */
-  static async del(id) {
+  static async del(id: number): Promise<unknown> {
     return this.withWriteLock(id, null, () => {
       try {
-        return this.db.delete({
+        return (this.db as GenericModelDelegate).delete({
           where: { id: id },
         });
       } catch (error) {
@@ -126,15 +110,12 @@ export default class DatabaseModel {
     });
   }
 
-  /**
-   * @template T
-   * @param {number} id
-   * @param {string[]?} connections
-   * @param {() => T} operation
-   * @param {boolean?} ignore
-   * @returns {Promise<T>}
-   */
-  static async withWriteLock(id, connections, operation, ignore = false) {
+  static async withWriteLock<T>(
+    id: number,
+    connections: string[] | null,
+    operation: () => T | Promise<T>,
+    ignore: boolean | null = false
+  ): Promise<T> {
     // ignore is a temporary solution, need a better locking system
     if (this.lockManager === null || ignore) return await operation();
 
@@ -143,22 +124,20 @@ export default class DatabaseModel {
     try {
       return await operation();
     } finally {
-      lockInstance.removeLock();
+      lockInstance?.removeLock();
     }
   }
 
-  /**
-   * @template T
-   * @param {number[]} ids
-   * @param {string[]?} connections
-   * @param {() => T} operation
-   * @returns {Promise<T>}
-   */
-  static async withWriteLocks(ids, connections, operation) {
-    if (this.lockManager === null || ids.length === 0) return await operation();
+  static async withWriteLocks<T>(
+    ids: number[],
+    connections: string[] | null,
+    operation: () => T | Promise<T>
+  ): Promise<T> {
+    const lockManager = this.lockManager;
+    if (lockManager === null || ids.length === 0) return await operation();
 
     const locks = ids.map((id) =>
-      this.lockManager.generateLockInstance(id, connections)
+      lockManager.generateLockInstance(id, connections)
     );
 
     const multiLock = new WriteMultiLock(locks).requestLocks();

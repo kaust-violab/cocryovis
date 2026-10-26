@@ -63,7 +63,7 @@ export class IlastikModule extends BaseModule {
     rawDataPath: string,
     modelPath: string,
     labelsOutputPath: string,
-    logFile: LogFile
+    logFile?: LogFile
   ): Promise<string> {
     if (!rawDataPath || !modelPath || !labelsOutputPath) {
       throw new ApiError(
@@ -72,7 +72,7 @@ export class IlastikModule extends BaseModule {
       );
     }
 
-    await logFile.writeLog("\n\nIlastik inference started\n");
+    await logFile?.writeLog("\n\nIlastik inference started\n");
 
     const rawDataFullPath =
       path.resolve(rawDataPath) + IlastikModule.rawDataset;
@@ -99,8 +99,8 @@ export class IlastikModule extends BaseModule {
       this.ilastikConfig.path + IlastikModule.inferencePath,
       inferenceParams,
       null,
-      (value) => logFile.writeLog(value),
-      (value) => logFile.writeLog(value)
+      (value) => logFile?.writeLog(value),
+      (value) => logFile?.writeLog(value)
     );
 
     return resultsFilePath;
@@ -113,7 +113,7 @@ export class IlastikModule extends BaseModule {
     rawDataPath: string,
     sparseLabelPath: string,
     outputPath: string,
-    logFile: LogFile
+    logFile?: LogFile
   ): Promise<string> {
     if (!rawDataPath || !sparseLabelPath || !outputPath) {
       throw new ApiError(
@@ -122,7 +122,7 @@ export class IlastikModule extends BaseModule {
       );
     }
 
-    await logFile.writeLog("\n\nCreating Ilastik project\n");
+    await logFile?.writeLog("\n\nCreating Ilastik project\n");
 
     const modelOutputFullPath = path.join(
       path.resolve(outputPath),
@@ -144,8 +144,8 @@ export class IlastikModule extends BaseModule {
       this.ilastikConfig.path + IlastikModule.pythonPath,
       projectParams,
       null,
-      (value) => logFile.writeLog(value),
-      (value) => logFile.writeLog(value)
+      (value) => logFile?.writeLog(value),
+      (value) => logFile?.writeLog(value)
     );
 
     return modelOutputFullPath;
@@ -178,7 +178,7 @@ export class IlastikModule extends BaseModule {
       "-le", littleEndian.toString(),
       "-s", datasetName,
       "-o", outputPath
-    ]
+    ];
 
     await Utils.runScript(
       this.ilastikConfig.path + IlastikModule.pythonPath,

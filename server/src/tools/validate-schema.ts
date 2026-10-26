@@ -1,26 +1,23 @@
-// @ts-check
-
-import z from "zod";
+import type z from "zod";
 import { fromError } from "zod-validation-error";
 import { ApiError } from "./error-handler";
+import type { Request } from "express";
 
-/**
- * @typedef { import("express").Request } Request
- * @typedef { import("express").Response } Response
- */
+type SchemaOutput<S> = S extends z.ZodType ? z.output<S> : undefined;
 
-/**
- * @param {string} input
- * @returns {string}
- */
-function replaceStrinInError(input) {
+export interface ValidatedRequest<B, P, Q> {
+  body: SchemaOutput<B>;
+  params: SchemaOutput<P>;
+  query: SchemaOutput<Q>;
+}
+
+function replaceStrinInError(input: string): string {
   return input.replace(/\bString\b/g, "Form");
 }
 
-/**
- * @param {z.ZodSafeParseResult<any>} validation
- */
-export function checkAndThrowValidationError(validation) {
+export function checkAndThrowValidationError(
+  validation: z.ZodSafeParseResult<unknown>
+) {
   if (!validation.success) {
     const validationError = fromError(validation.error, {
       maxIssuesInMessage: 1,
@@ -32,39 +29,38 @@ export function checkAndThrowValidationError(validation) {
   }
 }
 
-/**
- * @template {z.ZodTypeAny} [B=z.ZodTypeAny]
- * @template {z.ZodTypeAny} [P=z.ZodTypeAny]
- * @template {z.ZodTypeAny} [Q=z.ZodTypeAny]
- * @param {Request} req
- * @param {{ bodySchema?: B, paramsSchema?: P, querySchema?: Q }} [schemas]
- * @returns {{
- *   body?: z.output<B>,
- *   params?: z.output<P>,
- *   query?: z.output<Q>
- * }}
- */
-export default function validateSchema(
-  req,
-  { bodySchema, paramsSchema, querySchema } = {}
-) {
-  const result = {};
+export default function validateSchema<
+  B extends z.ZodType | undefined = undefined,
+  P extends z.ZodType | undefined = undefined,
+  Q extends z.ZodType | undefined = undefined,
+>(
+  req: Pick<
+    Request<unknown, unknown, unknown, unknown>,
+    "body" | "params" | "query"
+  >,
+  {
+    bodySchema,
+    paramsSchema,
+    querySchema,
+  }: { bodySchema?: B; paramsSchema?: P; querySchema?: Q } = {}
+): ValidatedRequest<B, P, Q> {
+  const result = {} as ValidatedRequest<B, P, Q>;
   if (bodySchema !== undefined) {
     const bodyValidation = bodySchema.safeParse(req.body);
     checkAndThrowValidationError(bodyValidation);
-    result.body = bodyValidation.data;
+    result.body = bodyValidation.data as SchemaOutput<B>;
   }
 
   if (paramsSchema !== undefined) {
     const paramsValidation = paramsSchema.safeParse(req.params);
     checkAndThrowValidationError(paramsValidation);
-    result.params = paramsValidation.data;
+    result.params = paramsValidation.data as SchemaOutput<P>;
   }
 
   if (querySchema !== undefined) {
     const queryValidation = querySchema.safeParse(req.query);
     checkAndThrowValidationError(queryValidation);
-    result.query = queryValidation.data;
+    result.query = queryValidation.data as SchemaOutput<Q>;
   }
   return result;
 }

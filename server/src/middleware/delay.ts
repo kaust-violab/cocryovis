@@ -1,15 +1,7 @@
-//@ts-check
+import type { Request, Response, NextFunction } from "express";
 
-/**
- * @param {number} [ms]
- */
 export function delay(ms = 1000) {
-  /**
-   * @param {import("express").Request} req
-   * @param {import("express").Response} res
-   * @param {import("express").NextFunction} next
-   */
-  return (req, res, next) => {
+  return (_req: Request, _res: Response, next: NextFunction) => {
     setTimeout(() => {
       next();
     }, ms);

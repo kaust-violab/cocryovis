@@ -1,41 +1,75 @@
-// @ts-check
-
 import path from "path";
 import fsPromises from "node:fs/promises";
 import fileSystem from "fs";
 import DatabaseModel, { withTransaction } from "./database-model";
 import appConfig from "../tools/config";
 import Utils from "../tools/utils";
-import { PendingUpload } from "../tools/file-handler";
-import { ApiError } from "../tools/error-handler";
+import type { PendingUpload } from "../tools/file-handler";
+import { ApiError, MissingResourceError } from "../tools/error-handler";
 import { ZipArchive } from "archiver";
-import { Prisma } from "@prisma/client";
+import type { Prisma } from "@prisma/client";
 import prismaManager from "../tools/prisma-manager";
+import type z from "zod";
+import type { tiltSeriesOptions } from "@cocryovis/schemas/componentSchemas/tilt-series-schema";
+import type {
+  volumeDescriptorSettingsSchema,
+  volumeSettings,
+} from "@cocryovis/schemas/componentSchemas/volume-settings-schema";
+
+export type VolumeDataDB =
+  RawVolumeDataDB | SparseLabelVolumeDataDB | PseudoLabelVolumeDataDB;
+export type DataFileDB =
+  RawVolumeDataFileDB | SparseVolumeDataFileDB | PseudoVolumeDataFileDB;
+export type VolumeDataWithFile =
+  | RawVolumeDataWithFileDB
+  | SparseVolumeDataWithFileDB
+  | PseudoVolumeDataWithFileDB;
+export type RawVolumeDataWithFileDB = RawVolumeDataDB & {
+  dataFile: RawVolumeDataFileDB;
+};
+export type SparseVolumeDataWithFileDB = SparseLabelVolumeDataDB & {
+  dataFile: SparseVolumeDataFileDB;
+};
+export type PseudoVolumeDataWithFileDB = PseudoLabelVolumeDataDB & {
+  dataFile: PseudoVolumeDataFileDB;
+};
+
+export type VolumeDataModelName =
+  "rawVolumeData" | "sparseLabelVolumeData" | "pseudoLabelVolumeData";
+export type VolumeDataFileModelName =
+  "rawVolumeDataFile" | "sparseVolumeDataFile" | "pseudoVolumeDataFile";
 
 /**
- * @import z from "zod"
- * @import { tiltSeriesOptions } from "@cocryovis/schemas/componentSchemas/tilt-series-schema";
- * @import { volumeDescriptorSettingsSchema, volumeSettings } from "@cocryovis/schemas/componentSchemas/volume-settings-schema";
- * @typedef { import("@prisma/client").RawVolumeData } RawVolumeDataDB
- * @typedef { import("@prisma/client").SparseLabelVolumeData } SparseLabelVolumeDataDB
- * @typedef { import("@prisma/client").PseudoLabelVolumeData } PseudoLabelVolumeDataDB
- * @typedef { RawVolumeDataDB | SparseLabelVolumeDataDB | PseudoLabelVolumeDataDB } VolumeDataDB
- * @typedef { import("@prisma/client").RawVolumeDataFile } RawVolumeDataFileDB
- * @typedef { import("@prisma/client").SparseVolumeDataFile } SparseVolumeDataFileDB
- * @typedef { import("@prisma/client").PseudoVolumeDataFile } PseudoVolumeDataFileDB
- * @typedef { RawVolumeDataFileDB | SparseVolumeDataFileDB | PseudoVolumeDataFileDB } DataFileDB
- * @typedef { RawVolumeDataDB & {dataFile: RawVolumeDataFileDB }}  RawVolumeDataWithFileDB
- * @typedef { SparseLabelVolumeDataDB & {dataFile: SparseVolumeDataFileDB }} SparseVolumeDataWithFileDB
- * @typedef { PseudoLabelVolumeDataDB & {dataFile: PseudoVolumeDataFileDB }} PseudoVolumeDataWithFileDB
- * @typedef { RawVolumeDataWithFileDB | SparseVolumeDataWithFileDB | PseudoVolumeDataWithFileDB} VolumeDataWithFile
- * @typedef { import("@prisma/client").Volume } VolumeDB
+ * The subset of the raw/sparse/pseudo volume data Prisma delegates that the
+ * shared VolumeData methods call.
  */
+interface VolumeDataDelegate {
+  findUniqueOrThrow(args: {
+    where: { id: number };
+    include: { dataFile: true };
+  }): Promise<VolumeDataWithFile>;
+  findUnique(args: {
+    where: { id: number };
+    include: { volumes: true };
+  }): Promise<{ volumes: VolumeDB[] } | null>;
+  create(args: { data: object }): Promise<VolumeDataDB>;
+}
+
+interface VolumeDataFileDelegate {
+  update(args: {
+    where: { id: number };
+    data: { path: string; rawFilePath: string };
+  }): Promise<unknown>;
+}
+
+export interface CreateFromFilesOptions {
+  skipLock?: boolean;
+  client?: Prisma.TransactionClient;
+  reconstructionParameters?: z.infer<typeof tiltSeriesOptions>;
+}
 
 export const volumeDataFolder = "volume-data";
 
-/**
- * @augments {DatabaseModel}
- */
 export default class VolumeData extends DatabaseModel {
   static rawFileExtensions = [".raw"];
   static settingFileExtensions = [".json"];
@@ -43,16 +77,18 @@ export default class VolumeData extends DatabaseModel {
     this.settingFileExtensions
   );
   static fileModelName = "";
-  static fileClass;
+  static fileClass: { createVolumeDataFolder(id: number): Promise<string> };
 
-  /**
-   * @param {VolumeDataDB & {dataFile: {rawFilePath: string}}} volumeData
-   * @param { PhysicalDimensions } physicalDimensions
-   * @returns {z.infer<typeof volumeSettings>}
-   */
-  static toSettingSchema(volumeData, physicalDimensions) {
+  static toSettingSchema(
+    volumeData: VolumeDataDB & { dataFile: { rawFilePath: string | null } },
+    physicalDimensions: PhysicalDimensions
+  ): z.infer<typeof volumeSettings> {
+    const rawFilePath = volumeData.dataFile.rawFilePath;
+    if (!rawFilePath) {
+      throw new ApiError(404, "Volume data is missing its raw file.");
+    }
     return {
-      file: path.basename(volumeData.dataFile.rawFilePath),
+      file: path.basename(rawFilePath),
       size: {
         x: volumeData.sizeX,
         y: volumeData.sizeY,
@@ -73,10 +109,9 @@ export default class VolumeData extends DatabaseModel {
     };
   }
 
-  /**
-   * @param {z.infer<typeof volumeDescriptorSettingsSchema>} settings
-   */
-  static fromSettingSchema(settings) {
+  static fromSettingSchema(
+    settings: z.infer<typeof volumeDescriptorSettingsSchema>
+  ) {
     return {
       sizeX: settings.size.x,
       sizeY: settings.size.y,
@@ -90,26 +125,16 @@ export default class VolumeData extends DatabaseModel {
     };
   }
 
-  /**
-   * @returns {string}
-   */
-  static get folderPath() {
+  static get folderPath(): string {
     throw new Error("Method not implemented");
   }
 
-  /**
-   * @param {number} id
-   * @returns {Promise<any>}
-   */
-  static async getById(id) {
-    return await super.getById(id);
+  static override async getById(id: number): Promise<VolumeDataDB> {
+    return (await super.getById(id)) as VolumeDataDB;
   }
 
-  /**
-   * @param {number} id
-   */
-  static async getWithData(id) {
-    const volumeData = await this.db.findUniqueOrThrow({
+  static async getWithData(id: number) {
+    const volumeData = await (this.db as VolumeDataDelegate).findUniqueOrThrow({
       where: { id: id },
       include: {
         dataFile: true,
@@ -118,39 +143,33 @@ export default class VolumeData extends DatabaseModel {
     return volumeData;
   }
 
-  /**
-   * @param {number} volumeDataId
-   * @param {number} volumeId
-   * @returns {Promise<boolean>}
-   */
-  static async belongsToVolume(volumeDataId, volumeId) {
-    const volumeData = await this.db.findUnique({
+  static async belongsToVolume(
+    volumeDataId: number,
+    volumeId: number
+  ): Promise<boolean> {
+    const volumeData = await (this.db as VolumeDataDelegate).findUnique({
       where: { id: volumeDataId },
       include: {
         volumes: true,
       },
     });
-    if (!volumeData || !volumeData.volumes.some((v) => v.id === volumeId)) {
+    if (!volumeData?.volumes.some((v) => v.id === volumeId)) {
       return false;
     }
     return true;
   }
 
-  /**
-   * @param {number} creatorId
-   * @param {number} volumeId
-   * @param {PendingUpload[]} files
-   * @param {z.infer<typeof volumeDescriptorSettingsSchema>} settings
-   * @param {{ skipLock?: boolean, client?: Prisma.TransactionClient, reconstructionParameters?: z.infer<tiltSeriesOptions> }} [options]
-   * @returns {Promise<object>}
-   */
   static async createFromFiles(
-    creatorId,
-    volumeId,
-    files,
-    settings,
-    { skipLock = false, client, reconstructionParameters } = {}
-  ) {
+    creatorId: number,
+    volumeId: number,
+    files: PendingUpload[],
+    settings: z.infer<typeof volumeDescriptorSettingsSchema>,
+    {
+      skipLock = false,
+      client,
+      reconstructionParameters,
+    }: CreateFromFilesOptions = {}
+  ): Promise<VolumeDataDB> {
     // Temporary fix to avoid circular dependency.
     const { default: Volume } = await import("./volume");
 
@@ -158,7 +177,7 @@ export default class VolumeData extends DatabaseModel {
       volumeId,
       [this.modelName],
       async () => {
-        let rawFile = files.find((f) =>
+        const rawFile = files.find((f) =>
           Utils.isFileExtensionAccepted(f.fileName, this.rawFileExtensions)
         );
 
@@ -175,6 +194,9 @@ export default class VolumeData extends DatabaseModel {
               rawData: true,
             },
           });
+          if (!volume) {
+            throw MissingResourceError.fromId(volumeId, "volume");
+          }
 
           if (volume.rawData === undefined) {
             await tx.volume.update({
@@ -190,8 +212,11 @@ export default class VolumeData extends DatabaseModel {
             });
           }
 
-          /** @type {VolumeDataDB} */
-          const volumeData = await tx[this.modelName].create({
+          const volumeData = await (
+            tx[
+              this.modelName as VolumeDataModelName
+            ] as unknown as VolumeDataDelegate
+          ).create({
             data: {
               creator: { connect: { id: creatorId } },
               volume: { connect: { id: volumeId } },
@@ -205,14 +230,18 @@ export default class VolumeData extends DatabaseModel {
               }),
             },
           });
-          let folderPath = null;
+          let folderPath: string | null = null;
           try {
             folderPath = await this.fileClass.createVolumeDataFolder(
               volumeData.id
             );
             const rawFilePath = await rawFile.saveAs(folderPath);
 
-            await tx[this.fileModelName].update({
+            await (
+              tx[
+                this.fileModelName as VolumeDataFileModelName
+              ] as unknown as VolumeDataFileDelegate
+            ).update({
               where: { id: volumeData.dataFileId },
               data: {
                 path: folderPath,
@@ -235,36 +264,30 @@ export default class VolumeData extends DatabaseModel {
     );
   }
 
-  /**
-   * @param {number} id
-   * @param {any} changes
-   * @returns {Promise<object>}
-   */
-  static async update(id, changes) {
-    return await super.update(id, changes);
+  static override async update(
+    id: number,
+    changes: object
+  ): Promise<VolumeDataDB> {
+    return (await super.update(id, changes)) as VolumeDataDB;
   }
 
-  /**
-   * @param {string} settingsString
-   * @param {string?} rawFilePath
-   */
-  static async parseSettings(settingsString, rawFilePath = null) {
-    const settings = JSON.parse(settingsString);
+  // eslint-disable-next-line @typescript-eslint/require-await -- keep thrown errors as promise rejections
+  static async parseSettings(
+    settingsString: string,
+    rawFilePath: string | null = null
+  ) {
+    const settings = JSON.parse(settingsString) as Record<string, unknown>;
     if (rawFilePath) {
-      settings["file"] = path.basename(rawFilePath);
+      settings.file = path.basename(rawFilePath);
     }
     if (!Object.hasOwn(settings, "transferFunction")) {
-      settings["transferFunction"] = "tf-default.json";
+      settings.transferFunction = "tf-default.json";
     }
     return JSON.stringify(settings);
   }
 
-  /**
-   * @param {string} folderPath
-   * @param {string} fileName
-   */
-  static checkFilePath(folderPath, fileName) {
-    let fileNameOverride = null;
+  static checkFilePath(folderPath: string, fileName: string) {
+    let fileNameOverride: string | null = null;
     const potentialSettingFilePath = path.join(folderPath, fileName);
     if (fileSystem.existsSync(potentialSettingFilePath)) {
       fileNameOverride = Utils.generateUniqueFileName(potentialSettingFilePath);
@@ -272,22 +295,19 @@ export default class VolumeData extends DatabaseModel {
     return fileNameOverride;
   }
 
-  /**
-   * @param {number} id
-   * @param {boolean} downloadRawFile
-   * @param {boolean} downloadSettingsFile
-   */
   static async prepareDataForDownload(
-    id,
+    id: number,
     downloadRawFile = true,
     downloadSettingsFile = true
   ) {
-    /**@type {VolumeDataWithFile} */
     const volumeData = await this.getWithData(id);
 
     const volume = await prismaManager.db.volume.findUnique({
       where: { id: volumeData.volumeId },
     });
+    if (!volume) {
+      throw MissingResourceError.fromId(volumeData.volumeId, "volume");
+    }
 
     let hasFiles = false;
 
@@ -305,7 +325,7 @@ export default class VolumeData extends DatabaseModel {
       const settings = VolumeData.toSettingSchema(volumeData, volume);
       const settingsJSON = JSON.stringify(settings, null, 4);
       archive.append(settingsJSON, {
-        name: `${Utils.stripExtension(volumeData.dataFile.rawFilePath)}.json`,
+        name: `${Utils.stripExtension(settings.file)}.json`,
       });
       hasFiles = true;
     }
@@ -314,6 +334,9 @@ export default class VolumeData extends DatabaseModel {
       throw new ApiError(404, "No files to download.");
     }
 
+    if (!volumeData.dataFile.path) {
+      throw new ApiError(404, "Volume data has no files on disk.");
+    }
     const outputFileName = `${this.modelName}_${Utils.stripExtension(
       volumeData.dataFile.path
     )}`;

@@ -1,18 +1,12 @@
-// @ts-check
-
 import appConfig from "../tools/config";
 import path from "path";
 import Utils from "./utils";
 import fileSystem from "fs";
 
 export default class LogFile {
-  /** @type {string} */ #filePath;
+  #filePath: string;
 
-  /**
-   * @param {string} basename
-   * @returns {Promise<LogFile>}
-   */
-  static async createLogFile(basename) {
+  static async createLogFile(basename: string): Promise<LogFile> {
     await fileSystem.promises.mkdir(appConfig.logPath, { recursive: true });
 
     let logPath = Utils.getInverseDateString() + "_" + basename;
@@ -25,10 +19,7 @@ export default class LogFile {
     return new LogFile(logPath);
   }
 
-  /**
-   * @param {string} filePath
-   */
-  constructor(filePath) {
+  constructor(filePath: string) {
     this.#filePath = filePath;
 
     Object.preventExtensions(this);
@@ -42,22 +33,15 @@ export default class LogFile {
     return fileSystem.existsSync(this.#filePath);
   }
 
-  /**
-   * @param {string} data
-   * @returns {Promise<void>}
-   */
-  async writeLog(data) {
+  async writeLog(data: string): Promise<void> {
     try {
-      return await fileSystem.promises.appendFile(this.#filePath, data);
+      await fileSystem.promises.appendFile(this.#filePath, data);
     } catch (error) {
-      console.error("Error writing log file: " + error);
+      console.error("Error writing log file: " + String(error));
     }
   }
 
-  /**
-   * @param {string} directory
-   */
-  async moveTo(directory) {
+  async moveTo(directory: string) {
     const newFilePath = path.join(directory, path.basename(this.#filePath));
     await fileSystem.promises.rename(this.#filePath, newFilePath);
     this.#filePath = newFilePath;

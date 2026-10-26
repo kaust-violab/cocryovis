@@ -18,7 +18,7 @@ import PseudoLabeledVolumeData from "../models/pseudo-labeled-volume-data";
 import type { volumeSizeSchema } from "@cocryovis/schemas/componentSchemas/volume-settings-schema";
 import { GPUTask } from "./gpu-task-handler";
 import type GPUResourcesManager from "./gpu-resources-manager";
-import { Deferred } from "./task-queue";
+import { Deferred, type QueuedTaskHistory } from "./task-queue";
 import moduleConfigLoader from "./module-config-loader";
 import {
   nanoOetziConfigSchema,
@@ -26,7 +26,7 @@ import {
 } from "../modules/nano-oetzi-module";
 
 interface DeepVolume extends VolumeDB {
-  rawData: RawVolumeDataWithFileDB;
+  rawData: RawVolumeDataWithFileDB | null;
   pseudoVolumes: PseudoVolumeDataWithFileDB[];
 }
 
@@ -134,7 +134,7 @@ export default class NanoOetziHandler {
     volumeId: number,
     userId: number,
     outputPath: string | null = null
-  ): Promise<TaskHistoryDB> {
+  ): Promise<QueuedTaskHistory> {
     if (!this.gpuTaskHandler.canRunTask()) {
       throw new ApiError(
         400,
@@ -143,11 +143,18 @@ export default class NanoOetziHandler {
     }
 
     const volume = await Volume.getById(volumeId, { rawData: true });
+    if (!volume.rawData) {
+      throw new ApiError(
+        400,
+        `Inference: Selected Volume must contain Raw Volume Data.`
+      );
+    }
 
     const rawVolumeData = await RawVolumeData.getWithData(volume.rawData.id);
     const checkpoint = await Checkpoint.getById(checkpointId);
 
-    NanoOetziHandler.checkInferenceInput(rawVolumeData, checkpoint);
+    NanoOetziHandler.checkInferenceRawData(rawVolumeData);
+    NanoOetziHandler.checkInferenceCheckpoint(checkpoint);
 
     const multiLock = new WriteMultiLock([
       Checkpoint.lockManager.generateLockInstance(checkpointId),
@@ -156,7 +163,7 @@ export default class NanoOetziHandler {
       ]),
     ]);
 
-    const historyDeferred = new Deferred<TaskHistoryDB>();
+    const historyDeferred = new Deferred<QueuedTaskHistory>();
 
     WriteMultiLock.withWriteMultiLock(multiLock, async () => {
       try {
@@ -205,8 +212,12 @@ export default class NanoOetziHandler {
         await RawVolumeData.getFromVolumeIdWithData(volumeId);
       const checkpoint = await Checkpoint.getById(checkpointId);
 
-      NanoOetziHandler.checkInferenceInput(rawVolumeData, checkpoint);
+      NanoOetziHandler.checkInferenceRawData(rawVolumeData);
+      NanoOetziHandler.checkInferenceCheckpoint(checkpoint);
 
+      if (!rawVolumeData.dataFile.path) {
+        throw new ApiError(500, "Raw Volume Data has no folder on disk.");
+      }
       tempSettingsPath = path.join(
         rawVolumeData.dataFile.path,
         `${Utils.stripExtension(rawVolumeData.dataFile.rawFilePath)}.json`
@@ -295,7 +306,7 @@ export default class NanoOetziHandler {
     testingVolumesIds: number[],
     params: z.infer<typeof trainingOptions>,
     outputPath: string | null = null
-  ): Promise<TaskHistoryDB> {
+  ): Promise<QueuedTaskHistory> {
     if (!trainingVolumesIds || trainingVolumesIds.length == 0) {
       throw new ApiError(
         400,
@@ -396,7 +407,7 @@ export default class NanoOetziHandler {
 
     const multiLock = new WriteMultiLock([modelLock, ...volumeLocks]);
 
-    const deferredHistory = new Deferred<TaskHistoryDB>();
+    const deferredHistory = new Deferred<QueuedTaskHistory>();
 
     WriteMultiLock.withWriteMultiLock(multiLock, async () => {
       try {
@@ -806,10 +817,11 @@ export default class NanoOetziHandler {
     }
   }
 
-  private static checkInferenceInput(
-    rawVolumeData: RawVolumeDataWithFileDB,
-    checkpoint: CheckpointDB
-  ) {
+  private static checkInferenceRawData(
+    rawVolumeData: RawVolumeDataWithFileDB | null
+  ): asserts rawVolumeData is RawVolumeDataWithFileDB & {
+    dataFile: { rawFilePath: string };
+  } {
     if (!rawVolumeData) {
       throw new ApiError(
         400,
@@ -822,8 +834,12 @@ export default class NanoOetziHandler {
         `Inference: Raw Volume Data Volume must contain a raw file.`
       );
     }
+  }
 
-    if (!fs.existsSync(checkpoint.filePath)) {
+  private static checkInferenceCheckpoint(
+    checkpoint: CheckpointDB
+  ): asserts checkpoint is CheckpointDB & { filePath: string } {
+    if (!checkpoint.filePath || !fs.existsSync(checkpoint.filePath)) {
       throw new ApiError(
         400,
         "Failed Attempt to start inference: Checkpoint file does not exist"

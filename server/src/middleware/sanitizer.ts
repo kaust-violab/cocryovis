@@ -1,17 +1,16 @@
-// @ts-check
+import type { Request, Response, NextFunction } from "express";
 
-/**
- * @param {object} obj
- * @returns {object}
- */
-export function sanitize(obj) {
+export function sanitize(obj: unknown): unknown {
   if (Array.isArray(obj)) {
     return obj.map(sanitize);
   }
 
   if (obj && typeof obj === "object") {
-    // eslint-disable-next-line no-unused-vars
-    const { passwordHash, passwordSalt, ...rest } = obj;
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { passwordHash, passwordSalt, ...rest } = obj as Record<
+      string,
+      unknown
+    >;
     return Object.fromEntries(
       Object.entries(rest).map(([key, value]) => [key, sanitize(value)])
     );
@@ -20,15 +19,14 @@ export function sanitize(obj) {
   return obj;
 }
 
-/**
- * @param {import("express").Request} req
- * @param {import("express").Response} res
- * @param {import("express").NextFunction} next
- */
-export function responseSanitizer(req, res, next) {
+export function responseSanitizer(
+  _req: Request,
+  res: Response,
+  next: NextFunction
+) {
   const originalSend = res.json;
 
-  res.json = function (data) {
+  res.json = function (this: Response, data: unknown) {
     const sanitizedData = sanitize(data); // Use the utility function
     return originalSend.call(this, sanitizedData);
   };

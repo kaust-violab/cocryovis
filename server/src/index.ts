@@ -106,6 +106,11 @@ const startServer = async () => {
 
   const allowInsecureCookies = process.env.ALLOW_INSECURE_COOKIES === "true";
 
+  const sessionSecret = process.env.SESSION_SECRET;
+  if (!sessionSecret) {
+    throw new Error("SESSION_SECRET environment variable is not set.");
+  }
+
   const sess: SessionOptions = {
     name: appConfig.cookieName,
     store: new SqliteStore({
@@ -117,7 +122,7 @@ const startServer = async () => {
     }),
     resave: false,
     saveUninitialized: false,
-    secret: process.env.SESSION_SECRET,
+    secret: sessionSecret,
     rolling: true,
     cookie: {
       httpOnly: true,

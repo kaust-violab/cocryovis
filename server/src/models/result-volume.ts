@@ -1,5 +1,3 @@
-// @ts-check
-
 import DatabaseModel from "./database-model";
 import prismaManager from "../tools/prisma-manager";
 import path from "path";
@@ -7,44 +5,41 @@ import fs from "fs";
 import { ApiError } from "../tools/error-handler";
 import { PendingUpload } from "../tools/file-handler";
 import ResultDataFile from "./result-data-file";
+import type {
+  Prisma,
+  ResultVolume as PrismaResultVolume,
+  ResultDataFile as PrismaResultDataFile,
+} from "@prisma/client";
+import type z from "zod";
+import type { volumeSettings } from "@cocryovis/schemas/componentSchemas/volume-settings-schema";
 
-/**
- * @typedef { import("@prisma/client").ResultVolume } ResultVolumeDB
- * @typedef { ResultVolumeDB & { dataFile: import("@prisma/client").ResultDataFile } } ResultVolumeWithFileDB
- * @import z from "zod"
- * @import { volumeSettings } from "@cocryovis/schemas/componentSchemas/volume-settings-schema"
- */
+export type ResultVolumeDB = PrismaResultVolume;
+export type ResultVolumeWithFileDB = ResultVolumeDB & {
+  dataFile: PrismaResultDataFile;
+};
 
 export default class ResultVolume extends DatabaseModel {
-  static modelName = "resultVolume";
+  static override modelName = "resultVolume";
 
-  static get db() {
+  static override get db() {
     return prismaManager.db.resultVolume;
   }
 
-  /**
-   * @param {number} id
-   * @returns {Promise<ResultVolumeDB>}
-   */
-  static async getById(id) {
-    return await super.getById(id);
+  static override async getById(id: number): Promise<ResultVolumeDB> {
+    return (await super.getById(id)) as ResultVolumeDB;
   }
 
-  /**
-   * @param {number} resultId
-   * @param {string | PendingUpload} file
-   * @param {Omit<import("@prisma/client").Prisma.ResultVolumeCreateInput, "result" | "dataFile">} volumeParameters
-   * @param {import("@prisma/client").Prisma.TransactionClient} client
-   * @returns {Promise<ResultVolumeDB>}
-   */
-  static async create(
-    resultId,
-    file,
-    volumeParameters,
-    client = prismaManager.db
-  ) {
-    let volume;
-    let newDirectory;
+  static override async create(
+    resultId: number,
+    file: string | PendingUpload,
+    volumeParameters: Omit<
+      Prisma.ResultVolumeCreateInput,
+      "result" | "dataFile"
+    >,
+    client: Prisma.TransactionClient = prismaManager.db
+  ): Promise<ResultVolumeDB> {
+    let volume: ResultVolumeDB | undefined;
+    let newDirectory: string | undefined;
     try {
       volume = await client.resultVolume.create({
         data: {
@@ -59,7 +54,7 @@ export default class ResultVolume extends DatabaseModel {
       });
 
       newDirectory = await ResultDataFile.createDirectory(volume.id);
-      let newFilePath;
+      let newFilePath: string;
       if (file instanceof PendingUpload) {
         newFilePath = await file.saveAs(newDirectory);
       } else {
@@ -85,7 +80,7 @@ export default class ResultVolume extends DatabaseModel {
         }
       } catch (deleteError) {
         console.error(
-          `Error rolling back result volume creation: ${deleteError.message}`
+          `Error rolling back result volume creation: ${(deleteError as Error).message}`
         );
       }
       if (newDirectory !== undefined) {
@@ -96,32 +91,35 @@ export default class ResultVolume extends DatabaseModel {
           });
         } catch (fsError) {
           console.error(
-            `Error rolling back result volume directory creation: ${fsError.message}`
+            `Error rolling back result volume directory creation: ${(fsError as Error).message}`
           );
         }
       }
-      throw new ApiError(500, `Error creating result volume: ${error.message}`);
+      throw new ApiError(
+        500,
+        `Error creating result volume: ${(error as Error).message}`
+      );
     }
   }
 
-  /**
-   * @param {number} _id
-   * @returns {Promise<ResultVolumeDB>}
-   */
-  static async del(_id) {
-    throw new Error(
-      "Result Volume cannot be deleted manually. Delete Result instead."
+  static override del(_id: number): Promise<ResultVolumeDB> {
+    return Promise.reject(
+      new Error(
+        "Result Volume cannot be deleted manually. Delete Result instead."
+      )
     );
   }
 
-  /**
-   * @param {ResultVolumeWithFileDB} volumeData
-   * @param { PhysicalDimensions } physicalDimensions
-   * @returns {z.infer<typeof volumeSettings>}
-   */
-  static toSettingSchema(volumeData, physicalDimensions) {
+  static toSettingSchema(
+    volumeData: ResultVolumeWithFileDB,
+    physicalDimensions: PhysicalDimensions
+  ): z.infer<typeof volumeSettings> {
+    const rawFilePath = volumeData.dataFile.rawFilePath;
+    if (!rawFilePath) {
+      throw new ApiError(404, "Result volume is missing its raw file.");
+    }
     return {
-      file: path.basename(volumeData.dataFile.rawFilePath),
+      file: path.basename(rawFilePath),
       size: {
         x: volumeData.sizeX,
         y: volumeData.sizeY,

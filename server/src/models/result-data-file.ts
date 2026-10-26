@@ -1,57 +1,41 @@
-// @ts-check
-
 import DatabaseModel, { withTransaction } from "./database-model";
 import prismaManager from "../tools/prisma-manager";
 import path from "path";
 import appConfig from "../tools/config";
 import fs from "fs";
 import { ApiError } from "../tools/error-handler";
-import { Prisma } from "@prisma/client";
+import type {
+  Prisma,
+  ResultDataFile as PrismaResultDataFile,
+} from "@prisma/client";
 
-/**
- * @typedef { import("@prisma/client").ResultDataFile } ResultDataFileDB
- * @import z from "zod"
- */
+export type ResultDataFileDB = PrismaResultDataFile;
 
 export default class ResultDataFile extends DatabaseModel {
-  static modelName = "resultDataFile";
+  static override modelName = "resultDataFile";
   static resultsFolder = "results";
 
-  static get db() {
+  static override get db() {
     return prismaManager.db.resultDataFile;
   }
 
-  /**
-   * @param {number} id
-   * @returns {Promise<ResultDataFileDB>}
-   */
-  static async getById(id) {
-    return await super.getById(id);
+  static override async getById(id: number): Promise<ResultDataFileDB> {
+    return (await super.getById(id)) as ResultDataFileDB;
   }
 
-  static async create() {
-    throw new ApiError(
-      500,
-      "Direct creation of result data files is not allowed"
+  static override create() {
+    return Promise.reject(
+      new ApiError(500, "Direct creation of result data files is not allowed")
     );
   }
 
-  /**
-   * @param {number} _id
-   * @returns {Promise<ResultDataFileDB>}
-   */
-  static async del(_id) {
-    throw new ApiError(
-      500,
-      "Direct deletion of result data files is not allowed"
+  static override del(_id: number): Promise<ResultDataFileDB> {
+    return Promise.reject(
+      new ApiError(500, "Direct deletion of result data files is not allowed")
     );
   }
 
-  /**
-   * @param {number} id
-   * @returns {Promise<string>}
-   */
-  static async createDirectory(id) {
+  static async createDirectory(id: number): Promise<string> {
     const resultsFolderPath = path.join(appConfig.dataPath, this.resultsFolder);
     const folderPath = path.join(resultsFolderPath, id.toString());
     if (fs.existsSync(folderPath)) {
@@ -69,11 +53,8 @@ export default class ResultDataFile extends DatabaseModel {
     return folderPath;
   }
 
-  /**
-   * @param {Prisma.TransactionClient | undefined} [client]
-   */
-  static async deleteZombies(client) {
-    return await withTransaction(client, async (tx) => {
+  static async deleteZombies(client?: Prisma.TransactionClient) {
+    await withTransaction(client, async (tx) => {
       const dataFiles = await tx.resultDataFile.findMany({
         where: {
           resultVolumes: {
@@ -95,7 +76,7 @@ export default class ResultDataFile extends DatabaseModel {
           }
         } catch (fsError) {
           console.error(
-            `Error deleting result volume directory during zombie cleanup: ${fsError.message}`
+            `Error deleting result volume directory during zombie cleanup: ${(fsError as Error).message}`
           );
         }
       }

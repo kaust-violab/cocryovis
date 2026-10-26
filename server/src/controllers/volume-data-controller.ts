@@ -1,5 +1,4 @@
-// @ts-check
-
+import { type Request, type Response } from "express";
 import RawVolumeData from "../models/raw-volume-data";
 import {
   VolumeDataFactory,
@@ -26,19 +25,15 @@ import VolumeData from "../models/volume-data";
 import { volumeSettings } from "@cocryovis/schemas/componentSchemas/volume-settings-schema";
 import Volume from "../models/volume";
 import { tiltSeriesOptions } from "@cocryovis/schemas/componentSchemas/tilt-series-schema";
+import { getSessionUser } from "../middleware/restrict";
 
-/**
- * @import z from "zod"
- * @typedef { import("express").Request } Request
- * @typedef { import("express").Response } Response
- */
+interface CreateFromFilesBody {
+  settings: string;
+  reconstructionParameters?: string;
+}
 
 export default class VolumeDataController {
-  /**
-   * @param {Request} req
-   * @param {Response} res
-   */
-  static getById = async (req, res) => {
+  static getById = async (req: Request, res: Response) => {
     const { params } = validateSchema(req, {
       paramsSchema: idVolumeDataAndType,
     });
@@ -50,11 +45,7 @@ export default class VolumeDataController {
     res.json(volumeData);
   };
 
-  /**
-   * @param {Request} req
-   * @param {Response} res
-   */
-  static update = async (req, res) => {
+  static update = async (req: Request, res: Response) => {
     const { params, body } = validateSchema(req, {
       paramsSchema: idVolumeDataAndType,
       bodySchema: volumeDataUpdate,
@@ -66,11 +57,7 @@ export default class VolumeDataController {
     res.status(200).json(volumeData);
   };
 
-  /**
-   * @param {Request} req
-   * @param {Response} res
-   */
-  static getData = async (req, res) => {
+  static getData = async (req: Request, res: Response) => {
     const { params } = validateSchema(req, {
       paramsSchema: idVolumeDataAndType,
     });
@@ -98,11 +85,7 @@ export default class VolumeDataController {
     });
   };
 
-  /**
-   * @param {Request} req
-   * @param {Response} res
-   */
-  static getVolumeVisualizationFiles = async (req, res) => {
+  static getVolumeVisualizationFiles = async (req: Request, res: Response) => {
     const { params } = validateSchema(req, {
       paramsSchema: idVolumeDataAndType,
     });
@@ -133,20 +116,16 @@ export default class VolumeDataController {
       [volumeData.dataFile.rawFilePath]
     );
 
-    archive.finalize();
+    void archive.finalize();
   };
 
-  /**
-   * @param {Request} req
-   * @param {Response} res
-   */
-  static createFromFiles = async (req, res) => {
+  static createFromFiles = async (req: Request, res: Response) => {
     const { params } = validateSchema(req, {
       paramsSchema: idVolumeAndType,
       // bodySchema: volumeSettings,
     });
 
-    if (!req.files || !req.files.rawFile) {
+    if (!req.files?.rawFile) {
       throw new ApiError(400, "Missing files.");
     }
 
@@ -163,14 +142,18 @@ export default class VolumeDataController {
       files,
       VolumeDataClass.acceptedFileExtensions
     );
-    const settings = volumeSettings.parse(JSON.parse(req.body.settings));
+    const {
+      settings: settingsJson,
+      reconstructionParameters: reconstructionParametersJson,
+    } = req.body as CreateFromFilesBody;
+    const settings = volumeSettings.parse(JSON.parse(settingsJson));
     const reconstructionParameters =
-      req.body.reconstructionParameters !== undefined
-        ? tiltSeriesOptions.parse(JSON.parse(req.body.reconstructionParameters))
+      reconstructionParametersJson !== undefined
+        ? tiltSeriesOptions.parse(JSON.parse(reconstructionParametersJson))
         : undefined;
 
     const volumeData = await VolumeDataClass.createFromFiles(
-      req.session.user.id,
+      getSessionUser(req).id,
       params.idVolume,
       unpackedFiles,
       settings,
@@ -180,11 +163,7 @@ export default class VolumeDataController {
     res.status(201).json(volumeData);
   };
 
-  /**
-   * @param {Request} req
-   * @param {Response} res
-   */
-  static createFromMrcFile = async (req, res) => {
+  static createFromMrcFile = async (req: Request, res: Response) => {
     const { params } = validateSchema(req, {
       paramsSchema: idVolumeAndType,
     });
@@ -196,7 +175,7 @@ export default class VolumeDataController {
       );
     }
 
-    if (!req.files || !req.files.files) {
+    if (!req.files?.files) {
       throw new ApiError(400, "No file uploaded");
     }
 
@@ -210,7 +189,7 @@ export default class VolumeDataController {
     }
 
     const volumeData = await RawVolumeData.createFromMrcFile(
-      req.session.user.id,
+      getSessionUser(req).id,
       params.idVolume,
       unpackedFiles[0]
     );
@@ -218,11 +197,7 @@ export default class VolumeDataController {
     res.status(201).json(volumeData);
   };
 
-  /**
-   * @param {Request} req
-   * @param {Response} res
-   */
-  static createFromUrl = async (req, res) => {
+  static createFromUrl = async (req: Request, res: Response) => {
     const { params, body } = validateSchema(req, {
       paramsSchema: idVolumeAndType,
       bodySchema: fromUrlSchema,
@@ -241,17 +216,23 @@ export default class VolumeDataController {
       const file = new PendingLocalFile(filePath);
       let volumeData;
 
-      if (req.body.fileType === "mrc") {
+      if ((req.body as { fileType: string }).fileType === "mrc") {
         volumeData = await RawVolumeData.createFromMrcFile(
-          req.session.user.id,
+          getSessionUser(req).id,
           params.idVolume,
           file
         );
       } else {
         const settings = body.volumeSettings;
+        if (!settings) {
+          throw new ApiError(
+            400,
+            "Volume settings are required for raw files."
+          );
+        }
 
         volumeData = await RawVolumeData.createFromFiles(
-          req.session.user.id,
+          getSessionUser(req).id,
           params.idVolume,
           [file],
           settings
@@ -269,11 +250,7 @@ export default class VolumeDataController {
     }
   };
 
-  /**
-   * @param {Request} req
-   * @param {Response} res
-   */
-  static downloadFullVolumeData = async (req, res) => {
+  static downloadFullVolumeData = async (req: Request, res: Response) => {
     const { params } = validateSchema(req, {
       paramsSchema: idVolumeDataAndType,
     });
@@ -286,14 +263,10 @@ export default class VolumeDataController {
     res.setHeader("Content-Disposition", `attachment; filename="${data.name}"`);
     data.archive.pipe(res);
 
-    data.archive.finalize();
+    void data.archive.finalize();
   };
 
-  /**
-   * @param {Request} req
-   * @param {Response} res
-   */
-  static downloadRawFile = async (req, res) => {
+  static downloadRawFile = async (req: Request, res: Response) => {
     const { params } = validateSchema(req, {
       paramsSchema: idVolumeDataAndType,
     });
@@ -306,14 +279,10 @@ export default class VolumeDataController {
     res.setHeader("Content-Disposition", `attachment; filename="${data.name}"`);
     data.archive.pipe(res);
 
-    data.archive.finalize();
+    void data.archive.finalize();
   };
 
-  /**
-   * @param {Request} req
-   * @param {Response} res
-   */
-  static downloadSettingsFile = async (req, res) => {
+  static downloadSettingsFile = async (req: Request, res: Response) => {
     const { params } = validateSchema(req, {
       paramsSchema: idVolumeDataAndType,
     });
@@ -326,14 +295,10 @@ export default class VolumeDataController {
     res.setHeader("Content-Disposition", `attachment; filename="${data.name}"`);
     data.archive.pipe(res);
 
-    data.archive.finalize();
+    void data.archive.finalize();
   };
 
-  /**
-   * @param {Request} req
-   * @param {Response} res
-   */
-  static downloadMrcFile = async (req, res) => {
+  static downloadMrcFile = async (req: Request, res: Response) => {
     const { params } = validateSchema(req, {
       paramsSchema: idVolumeDataAndType,
     });
@@ -355,14 +320,10 @@ export default class VolumeDataController {
     res.setHeader("Content-Disposition", `attachment; filename="${data.name}"`);
     data.archive.pipe(res);
 
-    data.archive.finalize();
+    void data.archive.finalize();
   };
 
-  /**
-   * @param {Request} req
-   * @param {Response} res
-   */
-  static delete = async (req, res) => {
+  static delete = async (req: Request, res: Response) => {
     const { params } = validateSchema(req, {
       paramsSchema: idVolumeDataAndType,
     });
@@ -374,11 +335,7 @@ export default class VolumeDataController {
     res.sendStatus(204);
   };
 
-  /**
-   * @param {Request} req
-   * @param {Response} res
-   */
-  static updateAnnotations = async (req, res) => {
+  static updateAnnotations = async (req: Request, res: Response) => {
     const { params } = validateSchema(req, {
       paramsSchema: idVolumeVolumeDataTypeParams,
       // bodySchema: updateAnnotationsSchema,
@@ -394,7 +351,7 @@ export default class VolumeDataController {
       );
     }
 
-    if (!req.files || !req.files.rawFile) {
+    if (!req.files?.rawFile) {
       throw new ApiError(400, "Missing files.");
     }
 
@@ -406,6 +363,9 @@ export default class VolumeDataController {
     const unpackedFiles = await unpackFiles(files, ["raw"]);
 
     const rawFile = unpackedFiles.find((file) => file.fileExtension === ".raw");
+    if (!rawFile) {
+      throw new ApiError(400, "Missing .raw file.");
+    }
 
     const sparseLabel = await SparseLabeledVolumeData.setRawData(
       params.idVolumeData,
