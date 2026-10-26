@@ -1,15 +1,15 @@
-[submodule "server/modules/nano-oetzi"]
-	path = server/modules/nano-oetzi
+[submodule "modules/nano-oetzi"]
+	path = modules/nano-oetzi
 	url = ../nano-oetzi
 	branch = web-server
-[submodule "server/modules/Proximal_CryoET"]
-	path = server/modules/Proximal_CryoET
+[submodule "modules/Proximal_CryoET"]
+	path = modules/Proximal_CryoET
 	url = ../../Scurek/Proximal_CryoET
-[submodule "server/modules/gctffind"]
-	path = server/modules/gctffind
+[submodule "modules/gctffind"]
+	path = modules/gctffind
 	url = ../../Scurek/GCtfFind
 	branch = bugfixes
-[submodule "server/modules/motioncor3"]
-	path = server/modules/motioncor3
+[submodule "modules/motioncor3"]
+	path = modules/motioncor3
 	url = ../MotionCor3
 	branch = bugfixes

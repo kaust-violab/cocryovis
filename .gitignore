@@ -2,3 +2,8 @@
 .idea/
 .env
 **/node_modules/
+
+# Installed module payloads (see module-installer)
+/modules/ilastik/*
+/modules/imod/*
+!/modules/*/.gitkeep

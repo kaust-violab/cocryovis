@@ -7,12 +7,11 @@ services:
       - app_dbdata:/database
       - ${APP_FILEDATA_PATH:-./.docker-volumes/data}:/data
       - ${APP_FILEDATA_PATH:-./.docker-volumes/logs}:/logs
-      - ${APP_FILEDATA_PATH:-./.docker-volumes/module-cache}:/module-cache
     command: 
       [
         "sh",
         "-c",
-        "chown -R 10001:10001 /database && chown -R 10001:10001 /data && chown -R 10001:10001 /logs && chown -R 10001:10001 /module-cache"
+        "chown -R 10001:10001 /database && chown -R 10001:10001 /data && chown -R 10001:10001 /logs"
       ]
     restart: "no"
     network_mode: "none"
@@ -46,7 +45,6 @@ services:
       - app_dbdata:/app/server/database
       - ${APP_FILEDATA_PATH:-./.docker-volumes/data}:/app/server/data
       - ${APP_FILEDATA_PATH:-./.docker-volumes/logs}:/app/server/logs
-      - ${APP_FILEDATA_PATH:-./.docker-volumes/module-cache}:/app/server/.module-cache
     deploy:
       resources:
         reservations:
@@ -67,7 +65,6 @@ services:
 volumes:
   app_dbdata:
   app_logdata:
-  app_modulecache:
 
 networks:
   cocryovis-network:

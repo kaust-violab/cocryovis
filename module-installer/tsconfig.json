@@ -1,0 +1,21 @@
+{
+  "compilerOptions": {
+    // Sources are run directly by Node's type stripping, so only erasable
+    // TypeScript syntax and explicit .ts import extensions are allowed.
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "target": "es2024",
+    "lib": ["esnext"],
+    "types": ["node"],
+    "noEmit": true,
+    "allowImportingTsExtensions": true,
+    "erasableSyntaxOnly": true,
+    "verbatimModuleSyntax": true,
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "skipLibCheck": true
+  },
+  "include": ["src"]
+}

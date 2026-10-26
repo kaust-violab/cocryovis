@@ -1,14 +1,10 @@
 {
   "Ilastik": {
-    "moduleFile": "ilastik-module.ts",
-    "aliases": ["ilastik"],
-    "path": "./modules/ilastik/",
+    "path": "../modules/ilastik/",
     "cleanTemporaryFiles": true
   },
   "NanoOetzi": {
-    "moduleFile": "nano-oetzi-module.ts",
-    "aliases": ["nano-oetzi", "nanooetzi"],
-    "path": "./modules/nano-oetzi/",
+    "path": "../modules/nano-oetzi/",
     "pythonPath": "python",
     "inference": {
       "defaultModel": "four_classes_model.ckpt",
@@ -19,23 +15,15 @@
     }
   },
   "ProximalCryoET": {
-    "moduleFile": "proximal-cryoet-module.ts",
-    "aliases": ["proximal-cryoet", "proximalcryoet"],
-    "path": "./modules/Proximal_CryoET/"
+    "path": "../modules/Proximal_CryoET/"
   },
   "MotionCor3": {
-    "moduleFile": "motion-cor3-module.ts",
-    "aliases": ["motion-cor3", "motioncor3"],
-    "path": "./modules/motioncor3/"
+    "path": "../modules/motioncor3/"
   },
   "GCtfFind": {
-    "moduleFile": "gctf-find-module.ts",
-    "aliases": ["gctf-find", "gctffind"],
-    "path": "./modules/gctffind/"
+    "path": "../modules/gctffind/"
   },
   "IMOD": {
-    "moduleFile": "imod-module.ts",
-    "aliases": ["imod"],
-    "path": "./modules/imod/"
+    "path": "../modules/imod/"
   }
 }

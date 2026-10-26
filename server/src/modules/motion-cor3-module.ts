@@ -2,17 +2,12 @@ import path from "path";
 import { z } from "zod";
 import Utils from "../tools/utils.mjs";
 import { BaseModule } from "./base-module";
-import type { ModuleInstallContext } from "./base-module";
 import { ApiError } from "../tools/error-handler.mjs";
 import type LogFile from "../tools/log-manager.mjs";
 import type { motionCorrectionOptions } from "@cocryovis/schemas/componentSchemas/tilt-series-schema";
 
 export const motionCor3ConfigSchema = z.object({
   path: z.string().min(1),
-});
-
-const motionCor3InstallConfigSchema = z.object({
-  cudaHome: z.string().min(1).optional(),
 });
 
 export type MotionCor3Config = z.infer<typeof motionCor3ConfigSchema>;
@@ -37,39 +32,6 @@ export class MotionCor3Module extends BaseModule {
       MotionCor3Module.executablePath
     );
     this.validateFileExists(executablePath);
-  }
-
-  static override async installModule(
-    moduleId: string,
-    {
-      modulesRoot,
-      runCommand,
-      getEnvValue,
-      getModuleInstallConfig,
-    }: ModuleInstallContext
-  ): Promise<void> {
-    const config = getModuleInstallConfig(
-      moduleId,
-      motionCor3InstallConfigSchema
-    );
-    const cudaHome =
-      getEnvValue(["MOTIONCOR3_CUDA_HOME", "CUDA_HOME"]) ?? config.cudaHome;
-
-    if (!cudaHome) {
-      throw new Error(
-        "Missing CUDA_HOME for MotionCor3. Set MOTIONCOR3_CUDA_HOME/CUDA_HOME environment variable or MotionCor3.cudaHome in module_config.json."
-      );
-    }
-
-    const modulePath = path.join(modulesRoot, "motioncor3");
-    await runCommand("make", ["clean"], { cwd: modulePath, allowFail: true });
-    await runCommand(
-      "make",
-      ["exe", "-f", "makefile11", `CUDAHOME=${cudaHome}`],
-      {
-        cwd: modulePath,
-      }
-    );
   }
 
   /**

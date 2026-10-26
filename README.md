@@ -7,6 +7,8 @@ This repository is organized as a multi-package workspace:
 - `server/`: Node.js + TypeScript API, Prisma (SQLite), modules, and static client hosting.
 - `client/`: React + Vite frontend.
 - `schemas/`: Shared schema package consumed by server and client.
+- `modules/`: External module payloads (git submodules and installed tools) used by the server.
+- `module-installer/`: Downloads and builds the external modules into `modules/`.
 - `dockerfiles/`: Container build and deploy definitions.
 
 ## Prerequisites
@@ -103,10 +105,10 @@ npm run start:prod
 
 ## Modules System
 
-Module installers and templates are managed from `server/`. \
-Detailed module architecture and conventions are provided in [modules-system.md](server/docs/modules-system.md).
+Module wrappers and templates are managed from `server/`; downloading/building the module payloads is done by the separate `module-installer/` workspace. \
+Detailed module architecture and conventions are provided in [modules-system.md](server/docs/modules-system.md) and [module-installer/README.md](module-installer/README.md).
 
-Install/download configured modules:
+Install/download all modules (in parallel, from the repository root):
 
 ```bash
 npm run modules:install
@@ -124,7 +126,7 @@ Install only specific modules:
 npm run modules:install -- --only MotionCor3
 ```
 
-Create a new module wrapper + config entry:
+Create a new module wrapper + config entry (from `server/`):
 
 ```bash
 npm run modules:create -- <module-id-or-name>
@@ -153,6 +155,7 @@ docker compose -f compose.yml up --build
 Notes:
 
 - Compose setup assumes GPU-capable runtime (`gpus: all`).
+- Modules are built in their own stage from `module-installer/` and `modules/` only, so app code changes don't rebuild them.
 - The container startup uses `npm run start:prod` (runs Prisma deploy + seed, then starts server).
 - Configure credentials/secrets with environment variables (`SESSION_SECRET`, `ADMIN_USERNAME`, `ADMIN_PASSWORD`).
 

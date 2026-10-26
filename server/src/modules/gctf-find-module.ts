@@ -2,17 +2,12 @@ import path from "path";
 import { z } from "zod";
 import Utils from "../tools/utils.mjs";
 import { BaseModule } from "./base-module";
-import type { ModuleInstallContext } from "./base-module";
 import { ApiError } from "../tools/error-handler.mjs";
 import type LogFile from "../tools/log-manager.mjs";
 import type { CTFOptions } from "@cocryovis/schemas/componentSchemas/tilt-series-schema";
 
 export const gctfFindConfigSchema = z.object({
   path: z.string().min(1),
-});
-
-const gctfFindInstallConfigSchema = z.object({
-  cudaHome: z.string().min(1).optional(),
 });
 
 export type GCtfFindConfig = z.infer<typeof gctfFindConfigSchema>;
@@ -38,39 +33,6 @@ export class GCtfFindModule extends BaseModule {
       GCtfFindModule.executablePath
     );
     this.validateFileExists(executablePath);
-  }
-
-  static override async installModule(
-    moduleId: string,
-    {
-      modulesRoot,
-      runCommand,
-      getEnvValue,
-      getModuleInstallConfig,
-    }: ModuleInstallContext
-  ): Promise<void> {
-    const config = getModuleInstallConfig(
-      moduleId,
-      gctfFindInstallConfigSchema
-    );
-    const cudaHome =
-      getEnvValue(["GCTFFIND_CUDA_HOME", "CUDA_HOME"]) ?? config.cudaHome;
-
-    if (!cudaHome) {
-      throw new Error(
-        "Missing CUDA_HOME for GCtfFind. Set GCTFFIND_CUDA_HOME/CUDA_HOME or GCtfFind.cudaHome in module_config.json."
-      );
-    }
-
-    const modulePath = path.join(modulesRoot, "gctffind");
-    await runCommand("make", ["clean"], { cwd: modulePath, allowFail: true });
-    await runCommand(
-      "make",
-      ["exe", "-f", "makefile", `CUDAHOME=${cudaHome}`],
-      {
-        cwd: modulePath,
-      }
-    );
   }
 
   /**

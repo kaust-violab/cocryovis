@@ -2,12 +2,8 @@ import path from "path";
 import { z } from "zod";
 import Utils from "../tools/utils.mjs";
 import { BaseModule } from "./base-module";
-import type { ModuleInstallContext } from "./base-module";
 import { ApiError } from "../tools/error-handler.mjs";
 import type LogFile from "../tools/log-manager.mjs";
-
-const ILASTIK_ARCHIVE = "ilastik-1.4.0b21-gpu-Linux.tar.gz";
-const ILASTIK_GDOWN_ID = "1T1zKnYqRB119wc84iE1rwwvmAgFI5JOa";
 
 export const ilastikConfigSchema = z.object({
   path: z.string().min(1),
@@ -58,105 +54,6 @@ export class IlastikModule extends BaseModule {
     this.validateFileExists(
       path.join(this.ilastikConfig.path, IlastikModule.createProjectPath)
     );
-  }
-
-  static override async installModule(
-    moduleId: string,
-    {
-      modulesRoot,
-      runCommand,
-      ensureDir,
-      cleanDirectory,
-      existsSync,
-      getCachePath,
-      cacheGet,
-      cacheSet,
-      removePath,
-      movePath,
-      readDirectory,
-    }: ModuleInstallContext
-  ): Promise<void> {
-    const ilastikPath = path.join(modulesRoot, "ilastik");
-    const runIlastikScript = path.join(
-      ilastikPath,
-      IlastikModule.inferencePath
-    );
-
-    await ensureDir(ilastikPath);
-
-    if (existsSync(runIlastikScript)) {
-      console.log(
-        "[modules] run_ilastik.sh already exists. Skipping Ilastik install."
-      );
-      return;
-    }
-    const extractedDir = "extracted";
-
-    const extractPath = path.join(ilastikPath, extractedDir);
-
-    const archivePath = path.join(ilastikPath, ILASTIK_ARCHIVE);
-    const cacheArchivePath = getCachePath(moduleId, ILASTIK_ARCHIVE);
-
-    let hasArchive = existsSync(archivePath);
-    if (!hasArchive) {
-      hasArchive = await cacheGet(cacheArchivePath, archivePath);
-      if (hasArchive) {
-        console.log(
-          `[modules] Restored ${ILASTIK_ARCHIVE} from cache for ${moduleId}.`
-        );
-      }
-    }
-
-    if (hasArchive) {
-      console.log(
-        `[modules] ${ILASTIK_ARCHIVE} already exists. Skipping download.`
-      );
-      await cleanDirectory(ilastikPath, new Set([".gitkeep", ILASTIK_ARCHIVE]));
-    } else {
-      await cleanDirectory(ilastikPath);
-      await runCommand("python3", ["-m", "venv", "./venv"], {
-        cwd: ilastikPath,
-      });
-      await runCommand("./venv/bin/pip", ["install", "--upgrade", "pip"], {
-        cwd: ilastikPath,
-      });
-      await runCommand("./venv/bin/pip", ["install", "--upgrade", "gdown"], {
-        cwd: ilastikPath,
-      });
-      await runCommand(
-        "./venv/bin/gdown",
-        [ILASTIK_GDOWN_ID, "-O", ILASTIK_ARCHIVE],
-        { cwd: ilastikPath }
-      );
-
-      await cacheSet(archivePath, cacheArchivePath);
-
-      await removePath(path.join(ilastikPath, "venv"), {
-        recursive: true,
-        force: true,
-      });
-    }
-
-    await ensureDir(extractPath);
-    await runCommand(
-      "tar",
-      ["-xf", `./${ILASTIK_ARCHIVE}`, "-C", `./${extractedDir}`],
-      {
-        cwd: ilastikPath,
-      }
-    );
-
-    const items = await readDirectory(extractPath);
-    const dir = items.find((item) => item.isDirectory());
-    if (!dir) throw new Error("No directory found");
-
-    await movePath(
-      path.join(extractPath, dir.name),
-      path.join(ilastikPath, IlastikModule.ilastikRoot)
-    );
-
-    await removePath(extractPath, { force: true, recursive: true });
-    await removePath(archivePath, { force: true });
   }
 
   /**

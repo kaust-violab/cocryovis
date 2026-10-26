@@ -18,7 +18,6 @@ const modulesRoot = path.resolve(serverRoot, MODULES_DIRECTORY);
 
 interface CliOptions {
   id?: string;
-  aliases: string[];
   force: boolean;
 }
 
@@ -36,22 +35,6 @@ const toPascalCase = (value: string): string => {
     .join("");
 };
 
-const parseAliases = (value: string, previous: string[]): string[] => {
-  const parsed = value
-    .split(",")
-    .map((item) => item.trim())
-    .filter((item) => item.length > 0);
-  return [...previous, ...parsed];
-};
-
-const dedupeAliases = (aliases: string[]): string[] => {
-  const unique = new Set<string>();
-  for (const alias of aliases) {
-    unique.add(toSlug(alias));
-  }
-  return [...unique].filter((alias) => alias.length > 0);
-};
-
 const writeModuleTemplate = async (
   moduleFilePath: string,
   className: string,
@@ -64,16 +47,8 @@ const writeModuleTemplate = async (
   }
 
   const template = `import { BaseModule } from "./base-module";
-import type { ModuleInstallContext } from "./base-module";
 
 export class ${className} extends BaseModule {
-  static override async installModule(
-    moduleId: string,
-    _context: ModuleInstallContext
-  ): Promise<void> {
-    console.log(\`[modules] \${moduleId}: no install step defined.\`);
-  }
-
   constructor() {
     super();
   }
@@ -88,12 +63,6 @@ const main = async (): Promise<void> => {
   program
     .name("create-module-template")
     .argument("<module>", "Module id or module name")
-    .option(
-      "--aliases <alias>",
-      "Module alias (repeat or use comma-separated values)",
-      parseAliases,
-      []
-    )
     .option("--force", "Overwrite existing module template file", false);
 
   program.parse(process.argv);
@@ -130,13 +99,8 @@ const main = async (): Promise<void> => {
     );
   }
 
-  const defaultAliases = [slug, slug.replace(/-/g, "")];
-  const aliases = dedupeAliases([...defaultAliases, ...options.aliases]);
-
   moduleConfig[moduleId] = {
-    moduleFile: moduleFileName,
-    aliases,
-    path: `./modules/${slug}/`,
+    path: `../modules/${slug}/`,
   };
 
   await writeModuleTemplate(moduleFilePath, className, options.force);

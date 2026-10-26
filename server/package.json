@@ -17,7 +17,7 @@
     "dev": "tsx src/index.ts",
     "dev:env": "conda run --no-capture-output -p ./.venv tsx src/index.ts",
     "build": "tsup",
-    "modules:install": "tsx src/tools/install-submodules.ts",
+    "modules:install": "npm --prefix ../module-installer run modules:install --",
     "modules:create": "tsx src/tools/create-module-template.ts",
     "tscheck": "tsc --noEmit",
     "format": "prettier --write .",

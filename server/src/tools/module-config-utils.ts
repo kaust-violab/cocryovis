@@ -3,9 +3,8 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { z } from "zod";
 
-export const MODULES_DIRECTORY = "modules";
+export const MODULES_DIRECTORY = path.join("..", "modules");
 export const MODULES_WRAPPER_DIRECTORY = path.join("src", "modules");
-export const MODULES_CACHE_DIRECTORY = ".module-cache";
 export const MODULES_CONFIG_FILE = "module_config.json";
 
 export type ModuleConfig = Record<string, Record<string, unknown>>;
@@ -18,11 +17,6 @@ const moduleConfigSchema = z.record(
   z.string(),
   z.record(z.string(), z.unknown())
 );
-
-export const moduleInstallerEntrySchema = z.object({
-  moduleFile: z.string().min(1),
-  aliases: z.array(z.string().min(1)).optional(),
-});
 
 export const getModuleConfigPath = (serverRoot: string): string =>
   path.join(serverRoot, MODULES_CONFIG_FILE);

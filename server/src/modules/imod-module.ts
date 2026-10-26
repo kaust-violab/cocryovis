@@ -2,13 +2,9 @@ import path from "path";
 import { z } from "zod";
 import Utils from "../tools/utils.mjs";
 import { BaseModule } from "./base-module";
-import type { ModuleInstallContext } from "./base-module";
 import { ApiError } from "../tools/error-handler.mjs";
 import type LogFile from "../tools/log-manager.mjs";
 import type { IMODOptions } from "@cocryovis/schemas/componentSchemas/tilt-series-schema";
-
-const IMOD_INSTALLER = "imod_5.1.1_RHEL8-64_CUDA12.0.sh";
-const IMOD_URL = `https://bio3d.colorado.edu/imod/AMD64-RHEL5/${IMOD_INSTALLER}`;
 
 export const imodConfigSchema = z.object({
   path: z.string().min(1),
@@ -25,57 +21,6 @@ export class IMODModule extends BaseModule {
 
   static readonly imodRoot = "IMOD";
   static readonly binPath = path.join(IMODModule.imodRoot, "bin");
-
-  static override async installModule(
-    moduleId: string,
-    {
-      modulesRoot,
-      runCommand,
-      ensureDir,
-      cleanDirectory,
-      chmod,
-      existsSync,
-      getCachePath,
-      cacheGet,
-      cacheSet,
-      removePath,
-    }: ModuleInstallContext
-  ): Promise<void> {
-    const imodPath = path.join(modulesRoot, "imod");
-    const installerPath = path.join(imodPath, IMOD_INSTALLER);
-    const cacheInstallerPath = getCachePath(moduleId, IMOD_INSTALLER);
-
-    await ensureDir(imodPath);
-    let hasInstaller = existsSync(installerPath);
-    if (!hasInstaller) {
-      hasInstaller = await cacheGet(cacheInstallerPath, installerPath);
-      if (hasInstaller) {
-        console.log(
-          `[modules] Restored ${IMOD_INSTALLER} from cache for ${moduleId}.`
-        );
-      }
-    }
-
-    await cleanDirectory(imodPath, new Set([".gitkeep", IMOD_INSTALLER]));
-
-    if (!hasInstaller) {
-      await runCommand("wget", ["--no-check-certificate", IMOD_URL], {
-        cwd: imodPath,
-      });
-
-      await cacheSet(installerPath, cacheInstallerPath);
-    }
-
-    await chmod(installerPath, 0o755);
-    await runCommand(
-      "sh",
-      [`./${IMOD_INSTALLER}`, "-y", "-skip", "-dir", "./"],
-      {
-        cwd: imodPath,
-      }
-    );
-    await removePath(installerPath, { force: true });
-  }
 
   constructor(config: IMODConfig) {
     super();

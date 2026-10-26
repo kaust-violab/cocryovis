@@ -12,9 +12,10 @@ dockerfiles
 server/database/*
 server/logs/*
 server/data/*
-server/.module-cache/*
+module-installer/.cache
 server/openapi.yaml
-.venv/
+**/.venv
+.git
 
 **/*.sqlite3
 **/*.sqlite
@@ -22,6 +23,11 @@ server/openapi.yaml
 
 **/temp/
 
-server/modules/Proximal_CryoET/CUDA_PROXIMAL_SART/build
-server/modules/ilastik/*
-server/modules/imod/*
+modules/Proximal_CryoET/CUDA_PROXIMAL_SART/build
+modules/ilastik/*
+modules/imod/*
+
+# Local module build outputs; the modules stage rebuilds them.
+**/*.o
+modules/motioncor3/MotionCor3
+modules/gctffind/GCtfFind

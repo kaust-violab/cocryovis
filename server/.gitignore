@@ -6,13 +6,10 @@ dist/
 /data/*
 .idea
 /cache/*
-/.module-cache/*
 *.sqlite3
 *.sqlite
 *.sqlite-journal
 .venv/
-/modules/ilastik/*
-/modules/imod/*
 __pycache__
 !.gitkeep
 openapi.yaml
