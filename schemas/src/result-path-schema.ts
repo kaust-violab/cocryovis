@@ -10,27 +10,10 @@ import {
 import { idSchema } from "./componentSchemas/id-param-schema";
 import type { ZodOpenApiPathsObject } from "zod-openapi";
 
-export const idVolumeAndIdResultParams = z
-  .object({
-    idVolume: idSchema,
-    idResult: idSchema,
-  })
-  .meta({
-    param: [
-      {
-        name: "idVolume",
-        in: "path",
-        required: true,
-        example: "1",
-      },
-      {
-        name: "idResult",
-        in: "path",
-        required: true,
-        example: "1",
-      },
-    ],
-  });
+export const idVolumeAndIdResultParams = z.object({
+  idVolume: idSchema,
+  idResult: idSchema,
+});
 
 export const resultFilesSchema = z.object({
   id: z.number(),

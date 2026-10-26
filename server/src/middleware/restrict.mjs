@@ -167,7 +167,7 @@ async function userHasReadAccessToVolumeData(
  */
 export async function restrictReadVolumeDataAccess(req, res, next) {
   const volumeDataId = Number(req.params.idVolumeData);
-  const volumeDataType = req.params.type;
+  const volumeDataType = String(req.params.type);
 
   if (
     !(await userHasReadAccessToVolumeData(

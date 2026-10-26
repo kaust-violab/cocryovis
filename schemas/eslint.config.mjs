@@ -12,7 +12,6 @@ export default defineConfig([
       "build/**",
       "node_modules/**",
       "public/**",
-      "tsup.config.ts",
     ],
   },
   {

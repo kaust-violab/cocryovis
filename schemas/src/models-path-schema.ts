@@ -25,49 +25,15 @@ export const createModelSchema = z.object({
   description: z.string(),
 });
 
-export const idModelAndTypeSchema = z
-  .object({
-    idModel: idSchema,
-    type: typeSchema,
-  })
-  .meta({
-    param: [
-      {
-        name: "idModel",
-        in: "path",
-        required: true,
-        example: "1",
-      },
-      {
-        name: "type",
-        in: "path",
-        required: true,
-        example: "RawVolumeData",
-      },
-    ],
-  });
+export const idModelAndTypeSchema = z.object({
+  idModel: idSchema,
+  type: typeSchema,
+});
 
-export const idModelAndidProject = z
-  .object({
-    idModel: idSchema,
-    idProject: idSchema,
-  })
-  .meta({
-    param: [
-      {
-        name: "idModel",
-        in: "path",
-        required: true,
-        example: "1",
-      },
-      {
-        name: "Project",
-        in: "path",
-        required: true,
-        example: "1",
-      },
-    ],
-  });
+export const idModelAndidProject = z.object({
+  idModel: idSchema,
+  idProject: idSchema,
+});
 
 export const modelsPath: ZodOpenApiPathsObject = {
   "/project/{idProject}/models": {

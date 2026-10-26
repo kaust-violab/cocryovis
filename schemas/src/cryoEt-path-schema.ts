@@ -4,18 +4,9 @@ import type { ZodOpenApiPathsObject } from "zod-openapi";
 import { tiltSeriesOptions } from "./componentSchemas/tilt-series-schema";
 import { idSchema } from "./componentSchemas/id-param-schema";
 
-export const idTomogram = z
-  .object({
-    idTomogram: idSchema,
-  })
-  .meta({
-    param: {
-      name: "idTomogram",
-      in: "path",
-      required: true,
-    },
-    example: { idVolume: "1" },
-  });
+export const idTomogram = z.object({
+  idTomogram: idSchema,
+});
 
 export const tomogramSchema = z.object({
   id: z.int(),

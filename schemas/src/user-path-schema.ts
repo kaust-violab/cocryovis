@@ -11,7 +11,7 @@ const emailSchema = z
     message: "Please provide a valid email address (e.g., email@example.com).",
   })
   .meta({
-    example: "email@example.com",
+    examples: ["email@example.com"],
   });
 const passwordSchema = z
   .string()

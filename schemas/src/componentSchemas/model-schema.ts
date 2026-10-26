@@ -17,15 +17,6 @@ export const modelSchemaWithCheckpoint = modelSchema.extend({
   checkpoints: z.array(checkpointSchema),
 });
 
-export const idModel = z
-  .object({
-    idModel: idSchema,
-  })
-  .meta({
-    param: {
-      name: "idModel",
-      in: "path",
-      required: true,
-    },
-    example: { idModel: "1" },
-  });
+export const idModel = z.object({
+  idModel: idSchema,
+});

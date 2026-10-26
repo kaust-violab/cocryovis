@@ -1,19 +1,14 @@
 {
+  // Consumed as TypeScript source by server (tsx/tsup) and client (vite),
+  // so this config only typechecks; nothing is emitted.
   "compilerOptions": {
-    "rootDir": "./src",
-    "outDir": "./dist",
+    "noEmit": true,
 
-    "module": "es2022",
-    "target": "es2024",
-    // For nodejs:
-    "lib": ["esnext"],
-    "types": ["node"],
+    "module": "esnext",
     "moduleResolution": "bundler",
-
-    // Other Outputs
-    "sourceMap": true,
-    "declaration": true,
-    "declarationMap": true,
+    "target": "es2024",
+    "lib": ["esnext"],
+    "types": [],
 
     // Stricter Typechecking Options
     "noUncheckedIndexedAccess": true,
@@ -29,16 +24,11 @@
 
     // Recommended Options
     "strict": true,
-    "jsx": "react-jsx",
     "verbatimModuleSyntax": true,
     "isolatedModules": true,
     "noUncheckedSideEffectImports": true,
     "moduleDetection": "force",
-    "skipLibCheck": true,
-
-    "allowJs": true,
-    "checkJs": true,
-    "esModuleInterop": true
+    "skipLibCheck": true
   },
   "include": ["src"]
 }

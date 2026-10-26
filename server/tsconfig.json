@@ -1,7 +1,7 @@
 {
+  // Typecheck only; the build is done by tsup.
   "compilerOptions": {
-    "rootDir": "src",
-    "outDir": "./dist",
+    "noEmit": true,
 
     "target": "ES2024",
     "module": "es2022",
@@ -9,12 +9,7 @@
     "strict": false,
     "allowJs": true,
     "checkJs": true,
-    "esModuleInterop": true,
-    "allowImportingTsExtensions": false,
-    "paths": {
-      "@cocryovis/schemas": ["../schemas/src"],
-      "@cocryovis/schemas/*": ["../schemas/src/*"]
-    }
+    "esModuleInterop": true
   },
   "include": ["src"]
 }

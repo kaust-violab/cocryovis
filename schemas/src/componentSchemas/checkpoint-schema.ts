@@ -10,15 +10,6 @@ export const checkpointSchema = z.object({
 
 export const checkpointSchemaArray = z.array(checkpointSchema);
 
-export const idCheckpoint = z
-  .object({
-    idCheckpoint: idSchema,
-  })
-  .meta({
-    param: {
-      name: "idCheckpoint",
-      in: "path",
-      required: true,
-    },
-    example: { idCheckpoint: "1" },
-  });
+export const idCheckpoint = z.object({
+  idCheckpoint: idSchema,
+});

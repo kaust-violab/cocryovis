@@ -8,7 +8,7 @@
     "server"
   ],
   "scripts": {
-    "build": "npm run -w schemas build && npm run -w server build && npm run -w client build",
+    "build": "npm run -w server build && npm run -w client build",
     "build:prod": "npm run -w server prisma:generate && npm run build",
     "start:prod": "npm run -w server start:prod",
     "tscheck": "npm run -w schemas tscheck && npm run -w server tscheck && npm run -w client tscheck && npm run -w module-installer tscheck",

@@ -58,76 +58,21 @@ export const updateAnnotationsSchema = z.object({
   rawFile: fileSchema,
 });
 
-export const idVolumeAndType = z
-  .object({
-    idVolume: idSchema,
-    type: typeSchema,
-  })
-  .meta({
-    param: [
-      {
-        name: "idVolume",
-        in: "path",
-        required: true,
-        example: "1",
-      },
-      {
-        name: "type",
-        in: "path",
-        required: true,
-        example: "RawVolumeData",
-      },
-    ],
-  });
+export const idVolumeAndType = z.object({
+  idVolume: idSchema,
+  type: typeSchema,
+});
 
-export const idVolumeDataAndType = z
-  .object({
-    idVolumeData: idSchema,
-    type: typeSchema,
-  })
-  .meta({
-    param: [
-      {
-        name: "idVolumeData",
-        in: "path",
-        required: true,
-        example: "1",
-      },
-      {
-        name: "type",
-        in: "path",
-        required: true,
-        example: "RawVolumeData",
-      },
-    ],
-  });
+export const idVolumeDataAndType = z.object({
+  idVolumeData: idSchema,
+  type: typeSchema,
+});
 
-export const idVolumeVolumeDataTypeParams = z
-  .object({
-    idVolumeData: idSchema,
-    type: typeSchema,
-    idVolume: idSchema,
-  })
-  .meta({
-    param: [
-      {
-        name: "idVolumeData",
-        in: "path",
-        required: true,
-        example: "1",
-      },
-      {
-        name: "type",
-        in: "path",
-        required: true,
-      },
-      {
-        name: "idVolume",
-        in: "path",
-        required: true,
-      },
-    ],
-  });
+export const idVolumeVolumeDataTypeParams = z.object({
+  idVolumeData: idSchema,
+  type: typeSchema,
+  idVolume: idSchema,
+});
 export const createFromFilesSchema = z.object({
   volumeSettings,
   rawFile: fileSchema,

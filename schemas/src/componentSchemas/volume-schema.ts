@@ -26,15 +26,6 @@ export const volumeUpdateSchema = z.object({
   physicalSizeZ: physicalDimensionSchema.optional(),
 });
 
-export const idVolume = z
-  .object({
-    idVolume: idSchema,
-  })
-  .meta({
-    param: {
-      name: "idVolume",
-      in: "path",
-      required: true,
-    },
-    example: { idVolume: "123" },
-  });
+export const idVolume = z.object({
+  idVolume: idSchema,
+});

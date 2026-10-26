@@ -9,15 +9,6 @@ export const projectSchema = z.object({
   publicAccess: z.int(),
 });
 
-export const idProject = z
-  .object({
-    idProject: idSchema,
-  })
-  .meta({
-    param: {
-      name: "idProject",
-      in: "path",
-      required: true,
-    },
-    example: { idProject: "1" },
-  });
+export const idProject = z.object({
+  idProject: idSchema,
+});

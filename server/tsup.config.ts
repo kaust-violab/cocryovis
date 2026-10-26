@@ -2,7 +2,7 @@ import { defineConfig } from "tsup";
 
 export default defineConfig({
   entry: ["src/index.ts"],
-  external: ["@cocryovis/schemas"],
+  noExternal: ["@cocryovis/schemas"],
   format: ["esm"],
   target: "node24",
   outDir: "dist",

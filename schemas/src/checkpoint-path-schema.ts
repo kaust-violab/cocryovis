@@ -13,27 +13,10 @@ import {
 import { idModel } from "./componentSchemas/model-schema";
 import type { ZodOpenApiPathsObject } from "zod-openapi";
 
-export const idModelAndidcheckpointParam = z
-  .object({
-    idCheckpoint: idSchema,
-    idModel: idSchema,
-  })
-  .meta({
-    param: [
-      {
-        name: "idcheckpoint",
-        in: "path",
-        required: true,
-        example: "1",
-      },
-      {
-        name: "idModel",
-        in: "path",
-        required: true,
-        example: "1",
-      },
-    ],
-  });
+export const idModelAndidcheckpointParam = z.object({
+  idCheckpoint: idSchema,
+  idModel: idSchema,
+});
 
 export const checkpointTxt = z.object({
   checkpointTxt: z.string(),

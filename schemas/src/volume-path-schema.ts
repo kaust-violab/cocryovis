@@ -45,19 +45,10 @@ export const getVolumeSchema = volumeSchema.extend({
   projects: z.array(projectSchema),
 });
 
-export const idProjectAndVolume = z
-  .object({
-    idProject: idSchema,
-    idVolume: idSchema,
-  })
-  .meta({
-    param: {
-      name: "idProject,idVolume",
-      in: "path",
-      required: true,
-    },
-    example: { idProject: "1", idVolume: "1" },
-  });
+export const idProjectAndVolume = z.object({
+  idProject: idSchema,
+  idVolume: idSchema,
+});
 
 export const xyz = z.object({
   x: z.number(),
