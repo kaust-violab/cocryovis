@@ -79,15 +79,18 @@ export default class DatabaseModel {
     changes: object,
     include: object | null = null
   ): Promise<unknown> {
-    return this.withWriteLock(id, null, () => {
+    return this.withWriteLock(id, null, async () => {
       try {
-        return (this.db as GenericModelDelegate).update({
+        return await (this.db as GenericModelDelegate).update({
           where: { id: id },
           data: changes,
           include: include,
         });
       } catch (error) {
-        if (error instanceof Prisma.PrismaClientKnownRequestError) {
+        if (
+          error instanceof Prisma.PrismaClientKnownRequestError &&
+          error.code === "P2025"
+        ) {
           throw MissingResourceError.fromId(id, this.modelName);
         }
         throw error;
@@ -96,13 +99,16 @@ export default class DatabaseModel {
   }
 
   static async del(id: number): Promise<unknown> {
-    return this.withWriteLock(id, null, () => {
+    return this.withWriteLock(id, null, async () => {
       try {
-        return (this.db as GenericModelDelegate).delete({
+        return await (this.db as GenericModelDelegate).delete({
           where: { id: id },
         });
       } catch (error) {
-        if (error instanceof Prisma.PrismaClientKnownRequestError) {
+        if (
+          error instanceof Prisma.PrismaClientKnownRequestError &&
+          error.code === "P2025"
+        ) {
           throw MissingResourceError.fromId(id, this.modelName);
         }
         throw error;

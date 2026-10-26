@@ -85,7 +85,7 @@ export default class Utils {
       "-" +
       ("0" + date.getUTCSeconds().toString()).slice(-2) +
       "-" +
-      ("0" + date.getUTCMilliseconds().toString()).slice(-3)
+      ("00" + date.getUTCMilliseconds().toString()).slice(-3)
     );
   }
 

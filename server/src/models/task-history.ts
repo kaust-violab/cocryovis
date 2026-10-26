@@ -50,7 +50,7 @@ export default class TaskHistory extends DatabaseModel {
 
     if (pageSize !== undefined && page === undefined) {
       page = 1;
-    } else if (pageSize === undefined && pageSize !== undefined) {
+    } else if (pageSize === undefined && page !== undefined) {
       pageSize = 10;
     }
 

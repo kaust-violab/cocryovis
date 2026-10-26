@@ -227,7 +227,7 @@ export default class Result extends DatabaseModel {
 
     const resultsFolderPath = path.join(appConfig.dataPath, this.resultsFolder);
 
-    void fsPromises.mkdir(resultsFolderPath, {
+    await fsPromises.mkdir(resultsFolderPath, {
       recursive: true,
     });
 

@@ -203,7 +203,7 @@ async function userHasReadAccessToModel(
 ) {
   const model = await Model.getById(modelId, { project: true });
   if (!model) {
-    throw new ApiError(404, `Volume ${modelId.toString()} not found!`);
+    throw new ApiError(404, `Model ${modelId.toString()} not found!`);
   }
   return await userHasReadAccessToProject(model.project, userId);
 }
