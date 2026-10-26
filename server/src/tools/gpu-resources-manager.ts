@@ -1,4 +1,4 @@
-import Utils from "./utils.mjs";
+import Utils from "./utils";
 
 export default class GPUResourcesManager {
   private gpuData: GPUData[] = [];

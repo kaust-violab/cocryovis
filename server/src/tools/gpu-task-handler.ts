@@ -1,4 +1,4 @@
-import { ApiError } from "./error-handler.mjs";
+import { ApiError } from "./error-handler";
 import type GPUResourcesManager from "./gpu-resources-manager";
 import TaskQueue, { Task } from "./task-queue";
 

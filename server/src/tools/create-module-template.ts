@@ -9,7 +9,7 @@ import {
   readModuleConfig,
   writeModuleConfig,
 } from "./module-config-utils";
-import Utils from "./utils.mjs";
+import Utils from "./utils";
 
 const currentDir = path.dirname(fileURLToPath(import.meta.url));
 const serverRoot = path.resolve(currentDir, "..", "..");

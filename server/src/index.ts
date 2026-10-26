@@ -11,19 +11,19 @@ import fileUpload from "express-fileupload";
 import Database from "better-sqlite3";
 import sqlite3SessionStore from "better-sqlite3-session-store";
 import helmet from "helmet";
-import appConfig from "./tools/config.mjs";
-import { logErrors, clientErrorHandler } from "./tools/error-handler.mjs";
-import WebSocketManager from "./tools/websocket-manager.mjs";
+import appConfig from "./tools/config";
+import { logErrors, clientErrorHandler } from "./tools/error-handler";
+import WebSocketManager from "./tools/websocket-manager";
 import http, { type RequestListener, type Server as HTTPServer } from "http";
 import https, { type Server as HTTPSServer } from "https";
-import TaskHistory from "./models/task-history.mjs";
-import { responseSanitizer } from "./middleware/sanitizer.mjs";
-import { checkCookieAge } from "./middleware/restrict.mjs";
+import TaskHistory from "./models/task-history";
+import { responseSanitizer } from "./middleware/sanitizer";
+import { checkCookieAge } from "./middleware/restrict";
 import { type OptionValues, program } from "commander";
 import swaggerUi, { type JsonObject } from "swagger-ui-express";
 import YAML from "yaml";
 import { writeOpenApi } from "./tools/open-api-generator";
-import { delay } from "./middleware/delay.mjs";
+import { delay } from "./middleware/delay";
 
 interface Args extends OptionValues {
   host?: string;

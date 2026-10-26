@@ -1,4 +1,4 @@
-import { ApiError } from "../tools/error-handler.mjs";
+import { ApiError } from "../tools/error-handler";
 import { type Request, type Response } from "express";
 import type ReconstructionHandler from "../tools/reconstruction-handler";
 import { tiltSeriesOptions } from "@cocryovis/schemas/componentSchemas/tilt-series-schema";

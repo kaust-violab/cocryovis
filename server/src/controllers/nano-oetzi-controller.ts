@@ -2,7 +2,7 @@ import {
   inferenceIds,
   trainingReq,
 } from "@cocryovis/schemas/nano-oetzi-path-schema";
-import validateSchema from "../tools/validate-schema.mjs";
+import validateSchema from "../tools/validate-schema";
 import { type Request, type Response } from "express";
 import type NanoOetziHandler from "../tools/nano-oetzi-handler.js";
 

@@ -1,5 +1,5 @@
-import TaskHistory from "../models/task-history.mjs";
-import LogFile from "./log-manager.mjs";
+import TaskHistory from "../models/task-history";
+import LogFile from "./log-manager";
 
 export class Deferred<T> {
   public readonly promise: Promise<T>;

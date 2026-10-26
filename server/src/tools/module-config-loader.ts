@@ -1,6 +1,6 @@
 import fs from "fs";
 import path from "path";
-import { ApiError } from "./error-handler.mjs";
+import { ApiError } from "./error-handler";
 
 /**
  * Load and validate module configuration from module_config.json

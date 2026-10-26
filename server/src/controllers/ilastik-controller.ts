@@ -1,5 +1,5 @@
 import { idVolume } from "@cocryovis/schemas/componentSchemas/volume-schema";
-import validateSchema from "../tools/validate-schema.mjs";
+import validateSchema from "../tools/validate-schema";
 import type { Request, Response } from "express";
 import type IlastikHandler from "../tools/ilastik-handler";
 

@@ -2,10 +2,10 @@ import path from "path";
 import fs from "fs";
 import fsPromises from "node:fs/promises";
 import { z } from "zod";
-import Utils from "../tools/utils.mjs";
+import Utils from "../tools/utils";
 import { BaseModule } from "./base-module";
-import { ApiError } from "../tools/error-handler.mjs";
-import type LogFile from "../tools/log-manager.mjs";
+import { ApiError } from "../tools/error-handler";
+import type LogFile from "../tools/log-manager";
 import type { trainingOptions } from "@cocryovis/schemas/nano-oetzi-path-schema";
 
 export const nanoOetziConfigSchema = z.object({

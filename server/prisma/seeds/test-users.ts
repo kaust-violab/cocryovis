@@ -1,7 +1,7 @@
 import "dotenv/config";
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcrypt";
-import { securityConfig } from "../../src/tools/config.mjs";
+import { securityConfig } from "../../src/tools/config";
 import { faker } from "@faker-js/faker";
 
 const prisma = new PrismaClient();

@@ -1,6 +1,6 @@
 import fs from "fs";
 import path from "path";
-import { ApiError } from "../tools/error-handler.mjs";
+import { ApiError } from "../tools/error-handler";
 
 /**
  * Abstract base class for external modules/tools

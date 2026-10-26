@@ -1,4 +1,4 @@
-import { type PublicUser } from "../models/user.mjs";
+import { type PublicUser } from "../models/user";
 
 declare module "express-session" {
   interface SessionData {
