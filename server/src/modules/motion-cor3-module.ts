@@ -57,7 +57,7 @@ export class MotionCor3Module extends BaseModule {
 
     if (!cudaHome) {
       throw new Error(
-        "Missing CUDA_HOME for MotionCor3. Set MOTIONCOR3_CUDA_HOME/CUDA_HOME or MotionCor3.cudaHome in module_config.json."
+        "Missing CUDA_HOME for MotionCor3. Set MOTIONCOR3_CUDA_HOME/CUDA_HOME environment variable or MotionCor3.cudaHome in module_config.json."
       );
     }
 
