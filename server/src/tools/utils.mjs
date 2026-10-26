@@ -70,7 +70,7 @@ export default class Utils {
     const params = [
       "-i", inputFile,
       "-o", outputPath
-    ]
+    ];
 
     const output = await Utils.runPythonScriptWithOutput(
       "analyze-to-raw.py",

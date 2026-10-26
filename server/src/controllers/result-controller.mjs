@@ -2,7 +2,7 @@
 
 import Result from "../models/result.mjs";
 import { ApiError } from "../tools/error-handler.mjs";
-import archiver from "archiver";
+import { ZipArchive } from "archiver";
 import Utils from "../tools/utils.mjs";
 import appConfig from "../tools/config.mjs";
 import { idResult } from "@cocryovis/schemas/componentSchemas/result-schema";
@@ -93,7 +93,7 @@ export default class ResultController {
       );
     }
 
-    const archive = archiver("zip", {
+    const archive = new ZipArchive({
       zlib: { level: appConfig.compressionLevel },
     });
 

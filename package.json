@@ -17,6 +17,6 @@
     "format": "npm run -w schemas format && npm run -w server format && npm run -w client format"
   },
   "engines": {
-    "node": ">=22"
+    "node": ">=22.23.4"
   }
 }

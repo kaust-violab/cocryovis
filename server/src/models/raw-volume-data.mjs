@@ -10,7 +10,7 @@ import WriteLockManager from "../tools/write-lock-manager.mjs";
 import Volume from "./volume.mjs";
 import { ApiError } from "../tools/error-handler.mjs";
 import appConfig from "../tools/config.mjs";
-import archiver from "archiver";
+import { ZipArchive } from "archiver";
 import RawVolumeDataFile from "./raw-volume-data-file.mjs";
 import { withTransaction } from "./database-model.mjs";
 import { Prisma } from "@prisma/client";
@@ -263,7 +263,7 @@ export default class RawVolumeData extends VolumeData {
 
     let hasFiles = false;
 
-    const archive = archiver("zip", {
+    const archive = new ZipArchive({
       zlib: { level: appConfig.compressionLevel },
     });
 

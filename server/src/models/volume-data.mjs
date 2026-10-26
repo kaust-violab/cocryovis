@@ -8,7 +8,7 @@ import appConfig from "../tools/config.mjs";
 import Utils from "../tools/utils.mjs";
 import { PendingUpload } from "../tools/file-handler.mjs";
 import { ApiError } from "../tools/error-handler.mjs";
-import archiver from "archiver";
+import { ZipArchive } from "archiver";
 import { Prisma } from "@prisma/client";
 import prismaManager from "../tools/prisma-manager.mjs";
 
@@ -291,7 +291,7 @@ export default class VolumeData extends DatabaseModel {
 
     let hasFiles = false;
 
-    const archive = archiver("zip", {
+    const archive = new ZipArchive({
       zlib: { level: appConfig.compressionLevel },
     });
 

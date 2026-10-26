@@ -8,7 +8,7 @@ import {
 import path from "path";
 import { ApiError } from "../tools/error-handler.mjs";
 import fileSystem from "fs";
-import archiver from "archiver";
+import { ZipArchive } from "archiver";
 import Utils from "../tools/utils.mjs";
 import { PendingLocalFile, unpackFiles } from "../tools/file-handler.mjs";
 import fsPromises from "node:fs/promises";
@@ -119,7 +119,7 @@ export default class VolumeDataController {
 
     const volume = await Volume.getById(volumeData.volumeId);
 
-    const archive = archiver("zip", {
+    const archive = new ZipArchive({
       zlib: { level: appConfig.compressionLevel },
     });
 
