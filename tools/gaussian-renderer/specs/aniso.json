@@ -1,0 +1,12 @@
+{ "name": "aniso", "size": 256, "dims": [160, 128, 96], "channels": ["ClassA", "ClassB", "ClassC", "Raw"],
+  "ramps": [ {"low": 0.25, "high": 0.35, "color": "#e0a030"}, {"low": 0.25, "high": 0.35, "color": "#30a0e0"}, {"low": 0.25, "high": 0.35, "color": "#60c060"}, {"low": 0, "high": 1, "color": "#ffffff"} ],
+  "defaults": { "camera": {"position": [1.5, 1.1, -1.9], "viewCenter": [0, 0, 0], "up": [0, 1, 0], "fovY": 40} },
+  "renders": [
+    { "name": "aniso_nolight_voxel", "volume": "aniso", "renderer": "march", "field": "voxel", "camera": {"position": [1.5, 1.1, -1.9], "viewCenter": [0, 0, 0], "up": [0, 1, 0], "fovY": 40}, "params": {"enableAmbientOcclusion": false, "enableSoftShadows": false, "enableJittering": false} },
+    { "name": "aniso_nolight_gauss", "scene": "aniso", "renderer": "march", "field": "gaussian", "camera": {"position": [1.5, 1.1, -1.9], "viewCenter": [0, 0, 0], "up": [0, 1, 0], "fovY": 40}, "params": {"enableAmbientOcclusion": false, "enableSoftShadows": false, "enableJittering": false} },
+    { "name": "aniso_nolight_splat", "scene": "aniso", "renderer": "splat", "camera": {"position": [1.5, 1.1, -1.9], "viewCenter": [0, 0, 0], "up": [0, 1, 0], "fovY": 40}, "params": {"enableAmbientOcclusion": false, "enableSoftShadows": false, "enableJittering": false} },
+    { "name": "aniso_ref_voxel", "volume": "aniso", "renderer": "march", "field": "voxel", "look": "reference", "camera": {"position": [1.5, 1.1, -1.9], "viewCenter": [0, 0, 0], "up": [0, 1, 0], "fovY": 40} },
+    { "name": "aniso_ref_gauss", "scene": "aniso", "renderer": "march", "field": "gaussian", "look": "reference", "camera": {"position": [1.5, 1.1, -1.9], "viewCenter": [0, 0, 0], "up": [0, 1, 0], "fovY": 40} },
+    { "name": "aniso_ref_cached", "scene": "aniso", "renderer": "march", "field": "gaussian", "look": "reference", "lighting": "cached", "camera": {"position": [1.5, 1.1, -1.9], "viewCenter": [0, 0, 0], "up": [0, 1, 0], "fovY": 40} },
+    { "name": "aniso_ref_splat", "scene": "aniso", "renderer": "splat", "look": "reference", "camera": {"position": [1.5, 1.1, -1.9], "viewCenter": [0, 0, 0], "up": [0, 1, 0], "fovY": 40} }
+  ] }

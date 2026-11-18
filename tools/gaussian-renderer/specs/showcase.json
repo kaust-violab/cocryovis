@@ -1,0 +1,7 @@
+{ "name": "showcase", "size": 512,
+  "renders": [
+    { "name": "show_voxel_reference_bloom", "volume": "original", "renderer": "march", "field": "voxel", "look": "reference", "bloom": true, "camera": {"position": [0.25, 0.5, -1.9], "viewCenter": [0, 0, 0.05], "up": [0, 1, 0], "fovY": 45} },
+    { "name": "show_gauss_reference_bloom", "scene": "ts16_s2", "renderer": "march", "field": "gaussian", "look": "reference", "bloom": true, "camera": {"position": [0.25, 0.5, -1.9], "viewCenter": [0, 0, 0.05], "up": [0, 1, 0], "fovY": 45} },
+    { "name": "show_splat_reference_bloom", "scene": "ts16_s2", "renderer": "splat", "look": "reference", "bloom": true, "camera": {"position": [0.25, 0.5, -1.9], "viewCenter": [0, 0, 0.05], "up": [0, 1, 0], "fovY": 45} },
+    { "name": "show_original_cocryovis", "volume": "original", "renderer": "original", "camera": {"position": [0.25, 0.5, -1.9], "viewCenter": [0, 0, 0.05], "up": [0, 1, 0], "fovY": 45} }
+  ] }

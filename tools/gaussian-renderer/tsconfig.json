@@ -1,0 +1,35 @@
+{
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "types": ["@webgpu/types"],
+    "typeRoots": ["./node_modules/@types", "./node_modules"],
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["../../client/src/*"],
+      "gl-matrix": ["./node_modules/gl-matrix"],
+      "buffer-backed-object": ["./node_modules/buffer-backed-object"],
+      "detect-browser": ["./node_modules/detect-browser"],
+      "color": ["./node_modules/color"]
+    }
+  },
+  "files": [
+    "src/harness.ts",
+    "../../client/src/types/shader.d.ts",
+    "../../client/src/global.d.ts",
+    "../../client/src/renderer/gaussian/extParametersBuffer.ts",
+    "../../client/src/renderer/gaussian/gaussianScene.ts",
+    "../../client/src/renderer/gaussian/gaussianLightCache.ts",
+    "../../client/src/renderer/gaussian/gaussianVolumePass.ts",
+    "../../client/src/renderer/gaussian/gaussianSplatPass.ts",
+    "../../client/src/renderer/gaussian/bloomComposite.ts"
+  ]
+}
