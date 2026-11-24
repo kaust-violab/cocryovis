@@ -100,6 +100,7 @@ function toHex2(v: number) {
 export class Harness {
   device!: GPUDevice;
   adapterInfo: Record<string, string> = {};
+  canTime: boolean = false;
 
   camera!: Camera;
   renderingParameters!: RenderingParametersBuffer;
@@ -120,13 +121,16 @@ export class Harness {
     if (!navigator.gpu) throw new Error("WebGPU is not available");
     const adapter = await navigator.gpu.requestAdapter();
     if (!adapter) throw new Error("No WebGPU adapter");
+    if (adapter.features.has("timestamp-query")) this.canTime = true;
     const info = adapter.info;
     this.adapterInfo = {
       vendor: info?.vendor ?? "",
       architecture: info?.architecture ?? "",
       description: info?.description ?? "",
+      timestampQuery: String(this.canTime),
     };
     this.device = await adapter.requestDevice({
+      requiredFeatures: this.canTime ? ["timestamp-query"] : [],
       requiredLimits: {
         maxStorageBufferBindingSize: adapter.limits.maxStorageBufferBindingSize,
         maxBufferSize: adapter.limits.maxBufferSize,
@@ -237,7 +241,7 @@ export class Harness {
     };
   }
 
-  private get managers() {
+  get managers() { //for viewer, small box with the only things that the pass uses
     return {
       volumeManager: {
         volume: this.volume ?? { getSampler: () => this.volumeSampler, getView: () => undefined, getTexture: () => undefined },
@@ -253,7 +257,7 @@ export class Harness {
     };
   }
 
-  private applyCommon(config: RenderConfig) {
+  applyCommon(config: RenderConfig) { //like gluniform, write in buffers
     const c = config.camera;
     this.camera.setParameters({
       position: vec3.fromValues(...c.position),

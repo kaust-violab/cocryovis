@@ -17,6 +17,7 @@ import type { VolumeManager } from "../volume/volumeManager";
 import type { ExtParametersBuffer } from "./extParametersBuffer";
 import { GaussianLightCache } from "./gaussianLightCache";
 import type { GaussianScene } from "./gaussianScene";
+import type { GpuTimer } from "./gpuTimer";
 
 /**
  * Where the pass reads its four channels from: the packed voxel texture of the
@@ -24,7 +25,8 @@ import type { GaussianScene } from "./gaussianScene";
  * Gaussian scene.
  */
 export type FieldSource =
-  { kind: "voxel" } | { kind: "gaussian"; scene: GaussianScene };
+  | { kind: "voxel" }
+  | { kind: "gaussian"; scene: GaussianScene };
 
 function group0Layout(
   field: FieldSource["kind"]
@@ -239,11 +241,17 @@ export class GaussianVolumePass {
     this.lightCache?.update(encoder);
   }
 
-  render(encoder: GPUCommandEncoder, clearColor: GPUColor) {
+  /**
+   * Records the ray-marching pass. With a timer, the pass also writes GPU
+   * timestamps; the caller resolves and reads them (see GpuTimer).
+   */
+  render(encoder: GPUCommandEncoder, clearColor: GPUColor, timer?: GpuTimer) {
     const gpuBindGroup = this.bindGroup.getGPUBindGroup();
-    const pass = encoder.beginRenderPass(
-      this.framebuffer.getRenderPassDescriptor(clearColor)
-    );
+    const descriptor = this.framebuffer.getRenderPassDescriptor(clearColor);
+    if (timer) {
+      descriptor.timestampWrites = timer.timestampWrites;
+    }
+    const pass = encoder.beginRenderPass(descriptor);
     if (gpuBindGroup) {
       pass.setPipeline(this.pipeline);
       pass.setBindGroup(0, gpuBindGroup);

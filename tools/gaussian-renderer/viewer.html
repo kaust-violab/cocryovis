@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<meta charset="utf-8" />
+
+<title>GaussVol viewer</title>
+<style>
+    body {margin: 0; background: #111; color: #ddd; font: 14px monospace;}
+    #info { margin: 8px; white-space: pre-wrap;}
+    /* canvas: renders 1024 x 1024 but is shown smaller to fit the window (3em = room for the status line) */
+    /* height auto keeps it square */
+    #view { display: block; width: min(100vw, calc(100vh - 3em)); height: auto; outline: 1px solid #444; }
+</style>
+
+<pre id="info">loading viewer.js...</pre>
+<canvas id="view" width="1024" height="1024"></canvas>
+<script src="/dist/viewer.js"></script>

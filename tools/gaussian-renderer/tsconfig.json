@@ -23,6 +23,7 @@
   },
   "files": [
     "src/harness.ts",
+    "src/viewer.ts",
     "../../client/src/types/shader.d.ts",
     "../../client/src/global.d.ts",
     "../../client/src/renderer/gaussian/extParametersBuffer.ts",

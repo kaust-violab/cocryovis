@@ -75,6 +75,22 @@ A batch specification lists renders; each names a renderer (`original`,
 `params`, `ext`, `bloom` and `refitSamples`. `volume` selects the voxel data
 (`original` or the voxelisation of a scene), `scene` the Gaussian scene.
 
+## Interactive viewer
+
+```bash
+node build.mjs
+node jobs/viewer.mjs     # opens a window; Ctrl+C in the terminal closes it
+```
+
+Shows the marched Gaussians of `$GV_SCENES/ts16_s2.json` in the reference
+look at 1024 x 1024, starting from the `whole` camera. Right-button drag
+rotates, the wheel zooms. A frame is drawn only when the camera moves, one at
+a time; while the camera rests the viewer averages up to 64 frames with new
+random seeds, which removes the grain. The status line shows the GPU time of
+the marched pass (timestamp queries, median of the last 30 frames, first frame
+left out). Add `--enable-webgpu-developer-features` to `GV_BROWSER_ARGS` so
+that Chrome does not round the timestamps.
+
 ## How the comparison is set up
 
 The reference for a Gaussian renderer is the voxel renderer applied to the
