@@ -1,5 +1,6 @@
 //harness init + adapter info
-import { Harness, type RenderConfig } from "./harness";
+import { Harness } from "./harness";
+import { configFromPreset, loadPresets } from "./presets";
 import { GaussianVolumePass } from "@/renderer/gaussian/gaussianVolumePass"; //@/ is client dir
 import { FullscreenComposite } from "@/renderer/core/fullscreenComposite";
 import { GpuTimer } from "@/renderer/gaussian/gpuTimer";
@@ -15,28 +16,9 @@ canvas.addEventListener("contextmenu", (e) => e.preventDefault());
 // harness: device, camera, parameter buffers, transfer functions, scene loading
 const h = new Harness();
 const SIZE = 1024; //same as the baseline table
-const SCENE_URL = "/data/scenes/ts16_s2.json"; //scene header served by viewer.mjs
 const MEDIAN_FRAMES = 30; //timed frames that goes into the median
 // how many frames are averaged while the camera rests (grain falls with the square root: 64 frames = 8 times less)
 const ACCUM_FRAMES = 64;
-
-const config: RenderConfig = { //like struct on c++ or uniform on opengl
-    renderer: "march",
-    field: "gaussian",
-    look: "reference",
-    width: SIZE,
-    height: SIZE,
-    camera: { position: [0.25, 0.5, -1.9], viewCenter: [0, 0, 0.05], up: [0, 1, 0], fovY: 45 },
-    ramps: 
-    [ 
-        { low: 0.1, high: 0.15, color: "#cf1f61" },
-        { low: 0.1, high: 0.15, color: "#c79aab" },
-        { low: 0.2, high: 0.25, color: "#223378" },
-        { low: 0.0, high: 1.0, color: "#ffffff" },
-    ],
-    numChannels: 4,
-    rawVolumeChannel: 3,
-};
 
 function status(text: string)
 {
@@ -57,9 +39,16 @@ async function main()
     const a = await h.init();
     const gpu = `adapter ${a.vendor} / ${a.architecture}, timestamp-query ${a.timestampQuery}`;
 
-    // download the scene, upload it to the gpu and build the grid 
-    status(`viewer: ${gpu}, loading scene…`);
-    const scene = await h.loadGaussians(SCENE_URL);
+    // the scene and how to show it: ?scene=<name> in the address (node jobs/viewer.mjs <name>), else the first preset
+    const presets = loadPresets();
+    if (!presets.length) throw new Error("no display presets: open the viewer with node jobs/viewer.mjs");
+    const wanted = new URLSearchParams(location.search).get("scene");
+    const preset = presets.find((p) => p.scene === wanted) ?? presets[0];
+    const config = configFromPreset(preset, "reference", SIZE);
+
+    // download the scene, upload it to the gpu and build the grid (takes a few seconds)
+    status(`viewer: ${gpu}, loading ${preset.scene}…`);
+    const scene = await h.loadGaussians(`/data/scenes/${preset.scene}.json`);
 
     // camera, render parameters, look and transfer functions into their buffers
     h.applyCommon(config);
@@ -159,7 +148,7 @@ async function main()
     const time = samples.length
       ? `marched pass ${median(samples).toFixed(2)} ms (gpu, median of ${samples.length})`
       : timer ? "measuring…" : "no gpu timer (timestamp-query missing)";
-    info.textContent = `viewer: ${gpu}, ${scene.count} gaussians, frame ${frames}, averaged ${accum.count}/${ACCUM_FRAMES}, ${time}`;
+    info.textContent = `viewer: ${gpu}, ${preset.scene} ${scene.count} gaussians, frame ${frames}, averaged ${accum.count}/${ACCUM_FRAMES}, ${time}`;
   }
   
   // runs at every screen refresh; draws if the camera moved or the average is not complete, and the gpu is free
@@ -172,7 +161,7 @@ async function main()
     requestAnimationFrame(tick);
   }
 
-  status(`viewer: ${gpu}, ${scene.count} gaussians, drawing…`);
+  status(`viewer: ${gpu}, ${preset.scene} ${scene.count} gaussians, drawing…`);
   requestAnimationFrame(tick);
 }
 
