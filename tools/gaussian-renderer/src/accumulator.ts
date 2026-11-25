@@ -62,6 +62,11 @@ export class Accumulator {
     this.n = 0;
   }
 
+// frees the gpu memory of the averaged image (when the scene changes)
+  destroy() {
+    this.target.destroy();
+  }
+  
   // records one pass that mixes the input frame into the average, call after the pass has drawn it
   add(encoder: GPUCommandEncoder) {
     const gpuBindGroup = this.bindGroup.getGPUBindGroup();
