@@ -1,6 +1,6 @@
 //harness init + adapter info
 import { Harness } from "./harness";
-import { configFromPreset, loadPresets, type DisplayPreset } from "./presets";
+import { configFromPreset, loadPresets} from "./presets";
 import { addSelect } from "./panel";
 import { LookMode } from "@/renderer/gaussian/extParametersBuffer";
 import { GaussianVolumePass } from "@/renderer/gaussian/gaussianVolumePass"; //@/ is client dir
@@ -62,6 +62,8 @@ async function main()
     const wanted = new URLSearchParams(location.search).get("scene");
     let preset = presets.find((p) => p.scene === wanted) ?? presets[0];
     let look: "fast" | "reference" = "reference";
+    // field the pass reads: the gaussians, the original voxel data of the preset, or the voxelisation of its gaussians
+    let field: "gaussian" | "data" | "fit" = "gaussian";
 
     // connect the canvas to the device, in the pixel format the screen prefers
     const canvasFormat = navigator.gpu.getPreferredCanvasFormat();
@@ -86,6 +88,9 @@ async function main()
     // download the scene, upload it to the gpu and build the grid (takes a few seconds)
     status(`viewer: ${gpu}, loading ${preset.scene}…`);
     scene = await h.loadGaussians(`/data/scenes/${preset.scene}.json`);
+    // voxel field: upload the volume (4 channels in one rgba8 3d texture, as cocryovis does)
+    if (field === "data") await h.loadVoxelVolume(preset.dataVolume!.urls, preset.dataVolume!.dims);
+    if (field === "fit") await h.loadVoxelVolume(preset.channels.map((c) => `/data/scenes/${preset.voxels}_${c}.raw`), preset.dims);
 
     // camera, render parameters, look and transfer functions into their buffers
     h.applyCommon(configFromPreset(preset, look, SIZE));
@@ -104,7 +109,7 @@ async function main()
     ...h.managers, // volumeManager, annotationManager, clippingPlaneManager
     renderingParameters: h.renderingParameters,
     extParameters: h.extParameters,
-    field: { kind: "gaussian", scene: h.scene! },
+    field: field === "gaussian" ? { kind: "gaussian", scene: h.scene! } : { kind: "voxel" },
     });
 
     // running average of the pass frames (rgba16float), restarted whenever the camera moves
@@ -142,7 +147,7 @@ async function main()
     if (samples.length > MEDIAN_FRAMES) samples.shift(); // keep only the newest ones
     // every MEDIAN_FRAMES timed frames, one line in the terminal to copy the number
     if (timedFrames % MEDIAN_FRAMES === 1) {
-      console.log(`viewer: ${preset.scene}, ${look}, marched pass ${median(samples).toFixed(2)} ms (gpu, median of ${samples.length} frames)`);
+      console.log(`viewer: ${preset.scene}, ${field}, ${look}, marched pass ${median(samples).toFixed(2)} ms (gpu, median of ${samples.length} frames)`);
     }
   }
 
@@ -186,7 +191,7 @@ async function main()
     const time = samples.length
       ? `marched pass ${median(samples).toFixed(2)} ms (gpu, median of ${samples.length})`
       : timer ? "measuring…" : "no gpu timer (timestamp-query missing)";
-    info.textContent = `viewer: ${gpu}, ${preset.scene} ${scene.count} gaussians, frame ${frames}, averaged ${accum.count}/${accumFrames()}, ${time}`;
+    info.textContent = `viewer: ${gpu}, ${preset.scene} ${scene.count} gaussians, field ${field}, frame ${frames}, averaged ${accum.count}/${accumFrames()}, ${time}`;
   }
   
   // runs at every screen refresh; draws if the camera moved or the average is not complete, and the gpu is free
@@ -203,13 +208,10 @@ async function main()
   const panel = document.getElementById("panel")!;
   const sceneMenu = addSelect(panel, "scene", presets.map((p) => ({ value: p.scene, label: p.scene })), preset.scene, (value) => {
     preset = presets.find((p) => p.scene === value)!;
-    samples.length = 0; // times of the old scene do not count
-    timedFrames = 0;
-    sceneMenu.disabled = true; // no second change while this scene loads
-    loadScene()
-      .then(() => status(`viewer: ${gpu}, ${preset.scene} ${scene.count} gaussians, drawing…`))
-      .catch((e) => (info.textContent = `ERROR: ${e instanceof Error ? e.message : e}`))
-      .finally(() => (sceneMenu.disabled = false));
+    if (!hasField(field)) field = "gaussian"; // the new scene lacks this voxel volume
+    fieldMenu.value = field;
+    updateFieldMenu();
+    reload();
   });
   addSelect(panel, "look", [{ value: "reference", label: "reference" }, { value: "fast", label: "fast (cocryovis)" }], look, (value) => {
     look = value as "fast" | "reference";
@@ -218,6 +220,28 @@ async function main()
     timedFrames = 0;
     dirty = true; // new image: start a new average
   });
+
+  // field: gaussians always; voxels only where this scene has them (greyed out otherwise)
+  const hasField = (f: string) => f === "gaussian" || (f === "data" && !!preset.dataVolume) || (f === "fit" && !!preset.voxels);
+  const fieldMenu = addSelect(panel, "field", [{ value: "gaussian", label: "gaussians" }, { value: "data", label: "voxels: data" }, { value: "fit", label: "voxels: of the gaussians" }], field, (value) => {
+    field = value as "gaussian" | "data" | "fit";
+    reload();
+  });
+  const updateFieldMenu = () => {
+    for (const option of fieldMenu.options) option.disabled = !hasField(option.value);
+  };
+  updateFieldMenu();
+
+  // loads the scene again with the current choices (camera back to the preset's); the menus are off meanwhile
+  function reload() {
+    samples.length = 0; // times of the old setting do not count
+    timedFrames = 0;
+    sceneMenu.disabled = fieldMenu.disabled = true;
+    loadScene()
+      .then(() => status(`viewer: ${gpu}, ${preset.scene} ${scene.count} gaussians, field ${field}, drawing…`))
+      .catch((e) => (info.textContent = `ERROR: ${e instanceof Error ? e.message : e}`))
+      .finally(() => (sceneMenu.disabled = fieldMenu.disabled = false));
+  }
 
   status(`viewer: ${gpu}, ${preset.scene} ${scene.count} gaussians, drawing…`);
   requestAnimationFrame(tick);
